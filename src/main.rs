@@ -5,7 +5,6 @@ use orchestrator::ExplorerType;
 use orchestrator::planet::PlanetMap;
 use orchestrator::ui::{OrchestratorToUiUpdate, UiToOrchestratorCommand};
 use std::collections::{HashMap, HashSet};
-mod manage_planets;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions::default();
