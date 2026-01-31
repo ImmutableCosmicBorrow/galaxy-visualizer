@@ -9,5 +9,6 @@ crossbeam-channel = "0.5.15"
 eframe = "0.33.3"
 egui = "0.33.3"
 orchestrator = { git = "https://github.com/ImmutableCosmicBorrow/orchestrator/", branch="ui-dev"}
+common-explorer = { git = "https://github.com/ImmutableCosmicBorrow/common-explorer/"}
 
 
