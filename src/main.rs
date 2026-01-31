@@ -80,7 +80,7 @@ impl GalaxyApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
-            ExplorerType::Nico,
+            ExplorerType::Jaco,
             None,
             None,
             5000,
@@ -700,12 +700,9 @@ impl eframe::App for GalaxyApp {
                     }
                     OrchestratorToUiUpdate::ExplorerSnapshot(id, bag) => {
                         self.explorer_bags.insert(id, bag);
-                        // Request supported combinations for this explorer (cache by explorer id)
-                        if !self.combination_cache.contains_key(&id) {
-                            let _ = self.cmd_sender.send(UiToOrchestratorCommand::SupportedCombinations(id));
-                        }
                     }
-                    //could be redundant but must show animation -> last thing to do, atm the refresh is sufficient to show
+
+                    //could be redundant but must show animation -> last thing to do, atm the refresh should be sufficient to show
                     //the change in explorer position
                     OrchestratorToUiUpdate::AutoMoveExplorer(explorer_id, from_id, to_id) => {
                         println!("← AutoMoveExplorer notification: explorer={} from={} to={}", explorer_id, from_id, to_id);
@@ -713,7 +710,7 @@ impl eframe::App for GalaxyApp {
                         let _ = self.cmd_sender.send(UiToOrchestratorCommand::GetExplorersPosition);
                     }
 
-                    //maybe redundant? tanto devo refreshare la bag
+                    //maybe redundant? must refresh bag
                     OrchestratorToUiUpdate::AutoExplorerCraftsRes(_explorer_id, _resource) => {}
                     OrchestratorToUiUpdate::AutoExplorerCombineRes(_explorer_id, _resource) => {}
 
@@ -980,61 +977,42 @@ impl eframe::App for GalaxyApp {
                 if let Some(state) = self.planet_states.get(&planet.id) {
                     let state_pos = planet.pos + egui::Vec2::new(0.0, radius + 28.0);
 
-                    // Build state text with emojis
-                    let mut state_text = String::new();
+                    // Animate displayed charged counter towards actual value
+                    let dt = ctx.input(|i| i.stable_dt);
+                    let target_charged = state.charged_cells_count as f32;
+                    let displayed = self
+                        .planet_displayed_charged
+                        .entry(planet.id)
+                        .or_insert(target_charged);
+                    let speed_per_sec = 12.0; // units per second
+                    let step = speed_per_sec * dt;
+                    if (*displayed - target_charged).abs() > 0.01 {
+                        if *displayed < target_charged {
+                            *displayed = (*displayed + step).min(target_charged);
+                        }
+                        // Don't animate down - keep optimistic values visible until confirmed
+                    }
 
-                    // Show rocket status
+                    // use the animated value when building text
+                    let displayed_charged_usize = (*displayed).round() as usize;
+
+                    // Build state text with emojis (animated value)
+                    let mut state_text = String::new();
                     if state.has_rocket {
                         state_text.push_str("🚀 ");
                     }
-
-                    let mut charged_cells_count = state.charged_cells_count;
-                    if state.charged_cells_count > state.energy_cells.len() {
-                        charged_cells_count = state.energy_cells.len();
-                    }
-
-                    // Show charged cells with battery emoji
                     state_text.push_str(&format!(
                         "⚡{}/{} ",
-                        charged_cells_count,
+                        displayed_charged_usize,
                         state.energy_cells.len()
                     ));
 
-                    // Visual representation of energy cells (max 10 to avoid clutter)
-                    let cells_to_show = state.energy_cells.len().min(10);
-                    for i in 0..cells_to_show {
-                        if i < state.energy_cells.len() && state.energy_cells[i] {
-                            state_text.push('🟢');
-                        } else {
-                            state_text.push('⚫');
-                        }
-                    }
-                    if state.energy_cells.len() > 10 {
-                        state_text.push_str("…");
-                    }
-
-                        // Animate displayed charged counter towards actual value
-                        let dt = ctx.input(|i| i.stable_dt);
-                        let target_charged = state.charged_cells_count as f32;
-                        let displayed = self.planet_displayed_charged.entry(planet.id).or_insert(target_charged);
-                        let speed_per_sec = 12.0; // units per second
-                        let step = speed_per_sec * dt;
-                        if (*displayed - target_charged).abs() > 0.01 {
-                            if *displayed < target_charged {
-                                *displayed = (*displayed + step).min(target_charged);
-                            }
-                            // Don't animate down - keep optimistic values visible until confirmed
-                        }
-
-                        // use the animated value when building text
-                        let displayed_charged_usize = (*displayed).round() as usize;
-
-                        // Draw state text with semi-transparent background
-                        let text_galley = painter.layout_no_wrap(
-                            state_text.clone(),
-                            egui::FontId::proportional(12.0),
-                            egui::Color32::WHITE,
-                        );
+                    // Draw state text with semi-transparent background
+                    let text_galley = painter.layout_no_wrap(
+                        state_text.clone(),
+                        egui::FontId::proportional(12.0),
+                        egui::Color32::WHITE,
+                    );
 
                     let text_rect =
                         egui::Align2::CENTER_TOP.anchor_size(state_pos, text_galley.size());
@@ -1046,34 +1024,10 @@ impl eframe::App for GalaxyApp {
                         egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180),
                     );
 
-                    // Replace the raw charged counter display with the animated one
-                    // Rebuild state_text to include the animated charged value
-                    let mut animated_state_text = String::new();
-                    if state.has_rocket {
-                        animated_state_text.push_str("🚀 ");
-                    }
-                    animated_state_text.push_str(&format!(
-                        "⚡{}/{} ",
-                        displayed_charged_usize,
-                        state.energy_cells.len()
-                    ));
-                    // energy cells visualization (unchanged)
-                    let cells_to_show = state.energy_cells.len().min(10);
-                    for i in 0..cells_to_show {
-                        if i < state.energy_cells.len() && state.energy_cells[i] {
-                            animated_state_text.push('🟢');
-                        } else {
-                            animated_state_text.push('⚫');
-                        }
-                    }
-                    if state.energy_cells.len() > 10 {
-                        animated_state_text.push_str("…");
-                    }
-
                     painter.text(
                         state_pos,
                         egui::Align2::CENTER_TOP,
-                        animated_state_text,
+                        state_text,
                         egui::FontId::proportional(12.0),
                         egui::Color32::WHITE,
                     );
@@ -1116,8 +1070,8 @@ impl eframe::App for GalaxyApp {
                         if let Some(cached) = self.resource_cache.get(&current_planet) {
                             self.resource_options = cached.clone();
                         } else {
-                            // request supported resources for this planet (will populate cache)
-                            let _ = self.cmd_sender.send(UiToOrchestratorCommand::SupportedResources(current_planet));
+                            // request supported resources for this expl (will populate cache)
+                            let _ = self.cmd_sender.send(UiToOrchestratorCommand::SupportedResources(expl_id));
                         }
                     }
                 }
