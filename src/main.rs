@@ -46,6 +46,7 @@ struct GalaxyApp {
     explorers: Vec<Explorer>,
     edges: Vec<(ID, ID)>,
     explorer_positions: HashMap<ID, ID>, // explorer_id -> planet_id
+    explorer_bags: HashMap<ID, common_explorer::ExplorerBagContent>,
     planet_states: HashMap<ID, DummyPlanetState>, // Track states separately
     cmd_sender: Sender<UiToOrchestratorCommand>,
     update_receiver: Receiver<OrchestratorToUiUpdate>,
@@ -109,6 +110,7 @@ impl GalaxyApp {
             explorers: Vec::new(),
             edges: Vec::new(),
             explorer_positions: HashMap::new(),
+            explorer_bags: HashMap::new(),
             planet_states: HashMap::new(),
             cmd_sender,
             update_receiver,
@@ -480,6 +482,41 @@ fn canonical_edge(a: ID, b: ID) -> Option<(ID, ID)> {
     }
 }
 
+fn explorer_name_from_id(id: ID) -> &'static str {
+    let id_bits = id as u32;
+    const EXPLORER_SHIFT: u32 = 7;
+    const NICO_SHIFT: u32 = 6;
+    const JACO_SHIFT: u32 = 5;
+    const ROB_SHIFT: u32 = 4;
+
+    if (id_bits & (1 << EXPLORER_SHIFT)) == 0 {
+        return "explorer";
+    }
+    if (id_bits & (1 << NICO_SHIFT)) != 0 {
+        "nico"
+    } else if (id_bits & (1 << ROB_SHIFT)) != 0 {
+        "rob"
+    } else if (id_bits & (1 << JACO_SHIFT)) != 0 {
+        "jaco"
+    } else {
+        "explorer"
+    }
+}
+
+fn format_bag_content(bag: &common_explorer::ExplorerBagContent) -> String {
+    if bag.resources_amounts.is_empty() {
+        return "bag: empty".to_string();
+    }
+
+    let mut entries: Vec<String> = bag
+        .resources_amounts
+        .iter()
+        .map(|(k, v)| format!("{:?}:{}", k, v))
+        .collect();
+    entries.sort();
+    format!("bag: {}", entries.join(", "))
+}
+
 // Map the orchestrator's galaxy snapshot into renderable planets + edges for egui
 #[allow(clippy::cast_precision_loss)]
 fn build_planets_and_edges_from_galaxy(
@@ -630,6 +667,7 @@ impl eframe::App for GalaxyApp {
                         
                         for explorer_id in dead_explorers {
                             self.explorer_positions.remove(&explorer_id);
+                            self.explorer_bags.remove(&explorer_id);
                             // Clean up any pending operations for dead explorers
                             if self.pending_generate_explorer == Some(explorer_id) {
                                 self.pending_generate_explorer = None;
@@ -661,9 +699,7 @@ impl eframe::App for GalaxyApp {
                             .or_insert(snapshot.charged_cells_count as f32);
                     }
                     OrchestratorToUiUpdate::ExplorerSnapshot(id, bag) => {
-                        if let Some(explorer) = self.explorers.iter_mut().find(|e| e.id == id) {
-                            explorer.bag = bag;
-                        }
+                        self.explorer_bags.insert(id, bag);
                         // Request supported combinations for this explorer (cache by explorer id)
                         if !self.combination_cache.contains_key(&id) {
                             let _ = self.cmd_sender.send(UiToOrchestratorCommand::SupportedCombinations(id));
@@ -914,6 +950,21 @@ impl eframe::App for GalaxyApp {
 
                     // Draw explorer as a larger bright yellow dot
                     painter.circle_filled(explorer_pos, explorer_radius, egui::Color32::YELLOW);
+
+                    // Draw explorer label with name, ID, and bag content
+                    let explorer_name = explorer_name_from_id(*explorer_id);
+                    let bag_line = match self.explorer_bags.get(explorer_id) {
+                        Some(bag) => format_bag_content(bag),
+                        None => "bag: loading".to_string(),
+                    };
+                    let label_text = format!("{} {}\n{}", explorer_name, explorer_id, bag_line);
+                    painter.text(
+                        explorer_pos + egui::Vec2::new(explorer_radius + 6.0, -explorer_radius - 6.0),
+                        egui::Align2::LEFT_TOP,
+                        label_text,
+                        egui::FontId::proportional(11.0),
+                        egui::Color32::WHITE,
+                    );
                 }
 
                 // draw name label centered below planet
