@@ -1337,7 +1337,7 @@ dependencies = [
 [[package]]
 name = "explorer_jacopo"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_jacopo.git#7fde4372ba6e383312475cac30b21c2191a4cb00"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_jacopo.git#ba9870121e361faa92a843f2a577afebb158f0b3"
 dependencies = [
  "common-explorer",
  "common-game",
@@ -1350,12 +1350,22 @@ dependencies = [
 [[package]]
 name = "explorer_nico"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_nico#107537a5af2fcbcf645ec3a243b654856c5d093e"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_nico#7a33446bee086c836c65aa8efe3c363e9b44655c"
 dependencies = [
  "common-explorer",
  "common-game",
  "crossbeam-channel",
  "rand",
+]
+
+[[package]]
+name = "explorer_rob"
+version = "0.1.0"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_rob.git#37964fe877f9c0315c1229ef5d230f30e7b2c9c4"
+dependencies = [
+ "common-explorer",
+ "common-game",
+ "crossbeam-channel",
 ]
 
 [[package]]
@@ -2610,7 +2620,7 @@ dependencies = [
 [[package]]
 name = "orchestrator"
 version = "0.2.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/orchestrator/#1fee1b64c7f6a19d36a2f0eeda90023aa31de40f"
+source = "git+https://github.com/ImmutableCosmicBorrow/orchestrator/#855818375d2036d61cbd5d82505f8256f0d59b2b"
 dependencies = [
  "Planet",
  "common-explorer",
@@ -2620,6 +2630,7 @@ dependencies = [
  "env_logger",
  "explorer_jacopo",
  "explorer_nico",
+ "explorer_rob",
  "luna4",
  "orbitron",
  "priority-queue",

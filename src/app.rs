@@ -57,7 +57,7 @@ impl GalaxyApp {
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
             ExplorerType::Jaco,
-            Some(ExplorerType::Nico ),
+            Some(ExplorerType::Rob ),
             None,
             5000,
         );
@@ -525,20 +525,6 @@ impl eframe::App for GalaxyApp {
             .cmd_sender
             .send(UiToOrchestratorCommand::GetExplorersPosition);
 
-        // Process delayed refreshes (100ms after sunray/asteroid)
-        let mut refreshed = Vec::new();
-        for (planet_id, sent_time) in &self.planets_to_refresh {
-            // give the orchestrator a bit more time to process sunray/asteroid
-            if sent_time.elapsed().as_millis() >= 300 {
-                self.cmd_sender
-                    .send(UiToOrchestratorCommand::GetPlanetSnapshot(*planet_id))
-                    .ok();
-                refreshed.push(*planet_id);
-            }
-        }
-        self.planets_to_refresh
-            .retain(|&(id, _)| !refreshed.contains(&id));
-
         egui::CentralPanel::default().show(ctx, |ui| {
             // Check for updates from orchestrator thread
             while let Ok(cmd) = self.update_receiver.try_recv() {
@@ -579,6 +565,7 @@ impl eframe::App for GalaxyApp {
                             self.cmd_sender.send(UiToOrchestratorCommand::GetExplorersPosition);
                     }
                     OrchestratorToUiUpdate::ExplorersPosition(positions) => {
+                        println!("← Received ExplorersPosition: {:?}", positions);
                         let guard = positions
                             .lock()
                             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -587,6 +574,7 @@ impl eframe::App for GalaxyApp {
                         //println!("   Updated self.explorer_positions: {:?}", self.explorer_positions);
                     }
                     OrchestratorToUiUpdate::PlanetSnapshot(id, snapshot) => {
+                        println!("← Received PlanetSnapshot for {id}: {:?}", snapshot);
                         // store actual snapshot
                         self.planet_states.insert(id, snapshot.clone());
                         // ensure we have a displayed counter initialized so it can animate
@@ -595,35 +583,23 @@ impl eframe::App for GalaxyApp {
                             .or_insert(snapshot.charged_cells_count as f32);
                     }
                     OrchestratorToUiUpdate::ExplorerSnapshot(id, bag) => {
+                        println!("← Received ExplorerSnapshot for {id}: {:?}", bag);
                         self.explorer_bags.insert(id, bag);
                     }
 
-                    //could be redundant but must show animation -> last thing to do, atm the refresh should be sufficient to show
-                    //the change in explorer position
-                    OrchestratorToUiUpdate::AutoMoveExplorer(explorer_id, from_id, to_id) => {
-                        println!(
-                            "← AutoMoveExplorer notification: explorer={explorer_id} from={from_id} to={to_id}"
-                        );
-                        // Request refreshed explorer positions to ensure UI sync
-                        let _ = self.cmd_sender.send(UiToOrchestratorCommand::GetExplorersPosition);
-                    }
-
-                    //maybe redundant? must refresh bag
-                    OrchestratorToUiUpdate::AutoExplorerCraftsRes(_explorer_id, _resource) => {}
-                    OrchestratorToUiUpdate::AutoExplorerCombineRes(_explorer_id, _resource) => {}
-
                     //draw supported combinations/resources, spawned when someone wants to craft/combine
-                    OrchestratorToUiUpdate::SupportedCombinations(explorer_id, combinations) => {
-                        println!("← SupportedCombinations for {explorer_id}: {combinations:?}");
+                    OrchestratorToUiUpdate::SupportedCombinations(planet_id, combinations) => {
+                        println!("← SupportedCombinations for {planet_id}: {combinations:?}");
                         let vec: Vec<ComplexResourceType> = combinations.into_iter().collect();
-                        // cache combinations under the planet the explorer is currently on (explorer is the requester)
-                        if let Some(planet_id) = self.explorer_positions.get(&explorer_id).copied()
-                        {
-                            self.combination_cache.insert(planet_id, vec.clone());
-                            if Some(explorer_id) == self.pending_craft_explorer {
-                                self.combination_options = vec;
-                            }
-                        }
+                        // cache by planet id
+                        self.combination_cache.insert(planet_id, vec.clone());
+                        // if the pending craft request was made by an explorer on this planet, populate options
+                        if let Some(expl_id) = self.pending_craft_explorer
+                            && let Some(current_planet) =
+                                self.explorer_positions.get(&expl_id).copied()
+                                && current_planet == planet_id {
+                                    self.combination_options = vec;
+                                }
                     }
                     OrchestratorToUiUpdate::SupportedResources(planet_id, resources) => {
                         println!("← SupportedResources for planet {planet_id}: {resources:?}");
@@ -862,7 +838,7 @@ impl eframe::App for GalaxyApp {
                     painter.circle_filled(explorer_pos, explorer_radius, egui::Color32::YELLOW);
 
                     // Draw explorer label with name, ID, and bag content
-                    let explorer_name = orchestrator::get_id_manager().explorer_name_from_id(*explorer_id);
+                    let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
                     let bag_line = match self.explorer_bags.get(explorer_id) {
                         Some(bag) => format_bag_content(bag),
                         None => "bag: loading".to_string(),
@@ -986,7 +962,7 @@ impl eframe::App for GalaxyApp {
                             // request supported resources for this expl (will populate cache)
                             let _ = self
                                 .cmd_sender
-                                .send(UiToOrchestratorCommand::SupportedResources(current_planet));
+                                .send(UiToOrchestratorCommand::SupportedResources(expl_id));
                         }
                 }
                 egui::Area::new(egui::Id::new("generate_resource_menu"))
@@ -1007,10 +983,10 @@ impl eframe::App for GalaxyApp {
                                 }
                                 if let Some(res) = chosen_resource {
                                     println!(
-                                        "→ Sending ManualExplorerCraftsRes(explorer={expl_id}, resource={res:?})"
+                                        "→ Sending ExplorerGenerateResource(explorer={expl_id}, resource={res:?})"
                                     );
                                     let _ = self.cmd_sender.send(
-                                        UiToOrchestratorCommand::ManualExplorerCraftsRes(
+                                        UiToOrchestratorCommand::ExplorerGenerateResource(
                                             expl_id, res,
                                         ),
                                     );
@@ -1040,10 +1016,14 @@ impl eframe::App for GalaxyApp {
                     && let Some(current_planet) = self.explorer_positions.get(&expl_id).copied() {
                         if let Some(cached) = self.combination_cache.get(&current_planet) {
                             self.combination_options.clone_from(cached);
+                        }else {
+                            // request supported resources for this expl (will populate cache)
+                            let _ = self
+                                .cmd_sender
+                                .send(UiToOrchestratorCommand::SupportedCombinations(expl_id));
                         }
-                        // Note: Request is already sent when craft_resource is clicked (line 444)
-                        // No need to request again here - just wait for the response
                 }
+
                 egui::Area::new(egui::Id::new("craft_resource_menu"))
                     .fixed_pos(egui::Pos2::new(140.0, 100.0))
                     .show(ctx, |ui| {
@@ -1062,10 +1042,10 @@ impl eframe::App for GalaxyApp {
                                 }
                                 if let Some(combo) = chosen_combo {
                                     println!(
-                                        "→ Sending ManualExplorerCombineRes(explorer={expl_id}, combo={combo:?})",
+                                        "→ Sending ExplorerCombineResource(explorer={expl_id}, combo={combo:?})",
                                     );
                                     let _ = self.cmd_sender.send(
-                                        UiToOrchestratorCommand::ManualExplorerCombineRes(
+                                        UiToOrchestratorCommand::ExplorerCombineResource(
                                             expl_id, combo,
                                         ),
                                     );
