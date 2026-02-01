@@ -10,5 +10,7 @@ eframe = "0.33.3"
 egui = "0.33.3"
 orchestrator = { git = "https://github.com/ImmutableCosmicBorrow/orchestrator/"}
 common-explorer = { git = "https://github.com/ImmutableCosmicBorrow/common-explorer/"}
+log = "0.4"
+env_logger = "0.11"
 
 
