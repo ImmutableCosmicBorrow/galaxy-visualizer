@@ -1337,7 +1337,7 @@ dependencies = [
 [[package]]
 name = "explorer_jacopo"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_jacopo.git#1463cd55dcb07181a8a29955d802c253ac667c57"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_jacopo.git#869d38d5ab47ee650e727eea56124573b70b2df9"
 dependencies = [
  "common-explorer",
  "common-game",
@@ -1361,7 +1361,7 @@ dependencies = [
 [[package]]
 name = "explorer_rob"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_rob.git#37964fe877f9c0315c1229ef5d230f30e7b2c9c4"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_rob.git#73c8e70f095a7a7d8ebc76fa94f4d37e7a200a4e"
 dependencies = [
  "common-explorer",
  "common-game",
@@ -2622,7 +2622,7 @@ dependencies = [
 [[package]]
 name = "orchestrator"
 version = "0.2.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/orchestrator/#b02ca81986d2c5c15e15708473cbc295f373fb5c"
+source = "git+https://github.com/ImmutableCosmicBorrow/orchestrator/#a00e213a9ca7679565781e5cffe0d4f41cce9790"
 dependencies = [
  "Planet",
  "common-explorer",

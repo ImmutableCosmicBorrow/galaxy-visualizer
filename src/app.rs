@@ -38,11 +38,9 @@ pub struct GalaxyApp {
     // Resource/crafting UI state
     pending_generate_explorer: Option<ID>, // explorer awaiting generate-resource selection
     pending_craft_explorer: Option<ID>,    // explorer awaiting craft-resource selection
-    resource_options: Vec<BasicResourceType>, // available basic resources
-    combination_options: Vec<ComplexResourceType>, // available complex combinations
-    // caches keyed by planet id so we don't re-request repeatedly
-    resource_cache: HashMap<ID, Vec<BasicResourceType>>,
-    combination_cache: HashMap<ID, Vec<ComplexResourceType>>,
+    resource_options: Option<Vec<BasicResourceType>>, // available basic resources
+    combination_options: Option<Vec<ComplexResourceType>>, // available complex combinations
+
     sending_asteroid: Option<(ID, Instant)>,
     sending_sunray: Option<(ID, Instant)>,
     planets_to_refresh: Vec<(ID, Instant)>, // Planets needing state refresh after delay
@@ -61,7 +59,7 @@ impl GalaxyApp {
             ExplorerType::Jaco,
             Some(ExplorerType::Rob ),
             None,
-            5000,
+            2000,
         );
 
         cmd_sender
@@ -108,17 +106,15 @@ impl GalaxyApp {
             explorer_limit_popup: None,
             pending_generate_explorer: None,
             pending_craft_explorer: None,
-            resource_options: Vec::new(),
-            combination_options: Vec::new(),
-            resource_cache: HashMap::new(),
-            combination_cache: HashMap::new(),
+            resource_options: None,
+            combination_options: None,
             sending_asteroid: None,
             sending_sunray: None,
             planets_to_refresh: Vec::new(),
             planet_displayed_charged: HashMap::new(),
             planet_snapshot_timer: std::time::Instant::now(),
-            planet_snapshot_interval: std::time::Duration::from_millis(300),
-            explorer_snapshot_interval: std::time::Duration::from_millis(300),
+            planet_snapshot_interval: std::time::Duration::from_secs(1),
+            explorer_snapshot_interval: std::time::Duration::from_secs(1),
             explorer_snapshot_timer: std::time::Instant::now(),
         }
     }
@@ -320,7 +316,7 @@ impl GalaxyApp {
 
         if manual_sunray {
             orchestrator::logging_utils::log_internal(
-                Channel::Debug,
+                Channel::Info,
                 payload!(
                     action : "send_manual_sunray",
                     planet_id : planet_id,
@@ -436,11 +432,11 @@ impl GalaxyApp {
             // ask orchestrator for supported resources for the planet where this explorer is
             self.pending_generate_explorer = Some(explorer_id);
             // clear previous options
-            self.resource_options.clear();
+            self.resource_options = None;
             // request supported resources from orchestrator for the planet (explorer is only requester)
             if let Some(planet_id) = self.explorer_positions.get(&explorer_id).copied() {
                 orchestrator::logging_utils::log_internal(
-                    Channel::Debug,
+                    Channel::Info,
                     payload!(
                         action : "request_supported_resources",
                         planet_id : planet_id,
@@ -457,9 +453,9 @@ impl GalaxyApp {
         if craft_resource {
             // ask orchestrator for supported combinations for this explorer, then show selection
             self.pending_craft_explorer = Some(explorer_id);
-            self.combination_options.clear();
+            self.combination_options = None;
             orchestrator::logging_utils::log_internal(
-                Channel::Debug,
+                Channel::Info,
                 payload!(
                     action : "request_supported_combinations",
                     explorer_id : explorer_id,
@@ -527,7 +523,6 @@ impl eframe::App for GalaxyApp {
             });
         });
 
-        // Request planet snapshots every 2 seconds instead of every frame
         if self.planet_snapshot_timer.elapsed() >= self.planet_snapshot_interval {
             for planet in &self.planets {
                 let _ = self
@@ -580,11 +575,11 @@ impl eframe::App for GalaxyApp {
                             // Clean up any pending operations for dead explorers
                             if self.pending_generate_explorer == Some(explorer_id) {
                                 self.pending_generate_explorer = None;
-                                self.resource_options.clear();
+                                self.resource_options = None;
                             }
                             if self.pending_craft_explorer == Some(explorer_id) {
                                 self.pending_craft_explorer = None;
-                                self.combination_options.clear();
+                                self.combination_options = None;
                             }
                         }
 
@@ -594,7 +589,7 @@ impl eframe::App for GalaxyApp {
                     }
                     OrchestratorToUiUpdate::ExplorersPosition(positions) => {
                         orchestrator::logging_utils::log_internal(
-                            Channel::Trace,
+                            Channel::Debug,
                             payload!(
                                 action : "received_explorers_position",
                             ),
@@ -608,7 +603,7 @@ impl eframe::App for GalaxyApp {
                     }
                     OrchestratorToUiUpdate::PlanetSnapshot(id, snapshot) => {
                         orchestrator::logging_utils::log_internal(
-                            Channel::Trace,
+                            Channel::Debug,
                             payload!(
                                 action : "received_planet_snapshot",
                                 planet_id : id,
@@ -623,7 +618,7 @@ impl eframe::App for GalaxyApp {
                     }
                     OrchestratorToUiUpdate::ExplorerSnapshot(id, bag) => {
                         orchestrator::logging_utils::log_internal(
-                            Channel::Trace,
+                            Channel::Debug,
                             payload!(
                                 action : "received_explorer_snapshot",
                                 explorer_id : id,
@@ -636,26 +631,21 @@ impl eframe::App for GalaxyApp {
                     //draw supported combinations/resources, spawned when someone wants to craft/combine
                     OrchestratorToUiUpdate::SupportedCombinations(explorer_id, combinations) => {
                         orchestrator::logging_utils::log_internal(
-                            Channel::Debug,
+                            Channel::Info,
                             payload!(
                                 action : "received_supported_combinations",
-                                explorer_id : explorer_id,
+                                explorer_id : explorer_id,  
                                 supported_combo: format!("{:?}", combinations)
                             ),
                         );
                         let vec: Vec<ComplexResourceType> = combinations.into_iter().collect();
-                        // cache by planet id (look up planet from explorer position)
-                        if let Some(planet_id) = self.explorer_positions.get(&explorer_id).copied() {
-                            self.combination_cache.insert(planet_id, vec.clone());
-                            // if the pending craft request was made by this explorer, populate options
-                            if self.pending_craft_explorer == Some(explorer_id) {
-                                self.combination_options = vec;
-                            }
+                        if self.pending_craft_explorer == Some(explorer_id) {
+                            self.combination_options = Some(vec);
                         }
                     }
                     OrchestratorToUiUpdate::SupportedResources(explorer_id, resources) => {
                         orchestrator::logging_utils::log_internal(
-                            Channel::Debug,
+                            Channel::Info,
                             payload!(
                                 action : "received_supported_resources",
                                 explorer_id : explorer_id,
@@ -664,12 +654,8 @@ impl eframe::App for GalaxyApp {
                         );
                         let vec: Vec<BasicResourceType> = resources.into_iter().collect();
                         // cache by planet id (look up planet from explorer position)
-                        if let Some(planet_id) = self.explorer_positions.get(&explorer_id).copied() {
-                            self.resource_cache.insert(planet_id, vec.clone());
-                            // if the pending generate request was made by this explorer, populate options
-                            if self.pending_generate_explorer == Some(explorer_id) {
-                                self.resource_options = vec;
-                            }
+                        if self.pending_generate_explorer == Some(explorer_id) {
+                            self.resource_options = Some(vec);
                         }
                     }
 
@@ -685,25 +671,30 @@ impl eframe::App for GalaxyApp {
                         self.sending_sunray = Some((planet_id, Instant::now()));
                         // Schedule refresh after a short delay to let orchestrator process the sunray
                         self.planets_to_refresh.push((planet_id, Instant::now()));
-                        // optimistic UI feedback: increment displayed charged counter immediately
-                        // but cap it at the maximum number of energy cells
+                        // Clamp displayed charged counter to the maximum number of energy cells
                         if let Some(state) = self.planet_states.get(&planet_id) {
                             let max_charged = state.energy_cells.len() as f32;
                             self.planet_displayed_charged
                                 .entry(planet_id)
-                                .and_modify(|v| *v = (*v + 1.0).min(max_charged))
-                                .or_insert(1.0);
-                        } else {
-                            self.planet_displayed_charged
-                                .entry(planet_id)
-                                .and_modify(|v| *v += 1.0)
-                                .or_insert(1.0);
+                                .and_modify(|v| {
+                                    if *v > max_charged {
+                                        *v = max_charged;
+                                    }
+                                })
+                                .or_insert(max_charged);
                         }
                     }
                     OrchestratorToUiUpdate::SendAutoAsteroid(planet_id) => {
                         self.sending_asteroid = Some((planet_id, Instant::now()));
                         // Schedule refresh after 100ms to let orchestrator process the asteroid
                         self.planets_to_refresh.push((planet_id, Instant::now()));
+                        orchestrator::logging_utils::log_internal(
+                            Channel::Debug,
+                            payload!(
+                                action : "auto asteroid received: drawing it",
+                                planet_id : planet_id,
+                            ),
+                        );
                     }
                 }
             }
@@ -771,7 +762,7 @@ impl eframe::App for GalaxyApp {
                                         if ui.button(format!("Planet {nid}")).clicked() {
                                             // log and send move command: Explorer ID, from, to
                                             orchestrator::logging_utils::log_internal(
-                                                Channel::Debug,
+                                                Channel::Info,
                                                 payload!(
                                                     action : "manual_move_explorer",
                                                     explorer_id : explorer_id,
@@ -1023,62 +1014,57 @@ impl eframe::App for GalaxyApp {
 
             // If we have resource options for generation, show them
             if let Some(expl_id) = self.pending_generate_explorer {
-                // populate working list from cache keyed by planet (explorer is only requester)
-                if self.resource_options.is_empty()
-                    && let Some(current_planet) = self.explorer_positions.get(&expl_id).copied() {
-                        if let Some(cached) = self.resource_cache.get(&current_planet) {
-                            self.resource_options.clone_from(cached);
-                        } else {
-                            // request supported resources for this expl (will populate cache)
-                            let _ = self
-                                .cmd_sender
-                                .send(UiToOrchestratorCommand::SupportedResources(expl_id));
-                        }
-                }
                 egui::Area::new(egui::Id::new("generate_resource_menu"))
                     .fixed_pos(egui::Pos2::new(100.0, 100.0))
                     .show(ctx, |ui| {
                         ui.vertical(|ui| {
                             ui.label(format!("Generate resource for Explorer {expl_id}:"));
                             ui.separator();
-                            if self.resource_options.is_empty() {
-                                ui.label("Loading...");
-                            } else {
-                                let mut chosen_resource: Option<BasicResourceType> = None;
-                                for opt in &self.resource_options {
-                                    let label = format!("{opt:?}");
-                                    if ui.button(label).clicked() {
-                                        chosen_resource = Some(*opt);
+
+                            if let Some(res_options) = self.resource_options.as_ref() {
+                                if res_options.is_empty() {
+                                    ui.label("No resources can be generated here.");
+                                } else {
+                                    let mut chosen_resource: Option<BasicResourceType> = None;
+                                    for opt in res_options {
+                                        let label = format!("{opt:?}");
+                                        if ui.button(label).clicked() {
+                                            chosen_resource = Some(*opt);
+                                        }
+                                    }
+                                    if let Some(res) = chosen_resource {
+                                        orchestrator::logging_utils::log_internal(
+                                            Channel::Info,
+                                            payload!(
+                                                action : "explorer_generate_resource",
+                                                explorer_id : expl_id,
+                                                resource : format!("{res:?}"),
+                                            ),
+                                        );
+                                        let _ = self.cmd_sender.send(
+                                            UiToOrchestratorCommand::ExplorerGenerateResource(
+                                                expl_id, res,
+                                            ),
+                                        );
+                                        let _ = self
+                                            .cmd_sender
+                                            .send(UiToOrchestratorCommand::GetExplorerSnapshot(expl_id));
+                                        let _ = self
+                                            .cmd_sender
+                                            .send(UiToOrchestratorCommand::GetExplorersPosition);
+                                        self.pending_generate_explorer = None;
+                                        self.resource_options = None;
                                     }
                                 }
-                                if let Some(res) = chosen_resource {
-                                    orchestrator::logging_utils::log_internal(
-                                        Channel::Debug,
-                                        payload!(
-                                            action : "explorer_generate_resource",
-                                            explorer_id : expl_id,
-                                            resource : format!("{res:?}"),
-                                        ),
-                                    );
-                                    let _ = self.cmd_sender.send(
-                                        UiToOrchestratorCommand::ExplorerGenerateResource(
-                                            expl_id, res,
-                                        ),
-                                    );
-                                    let _ = self
-                                        .cmd_sender
-                                        .send(UiToOrchestratorCommand::GetExplorerSnapshot(expl_id));
-                                    let _ = self
-                                        .cmd_sender
-                                        .send(UiToOrchestratorCommand::GetExplorersPosition);
-                                    self.pending_generate_explorer = None;
-                                    self.resource_options.clear();
-                                }
-                            }
+                                
+                            }else{
+                                ui.label("Loading...");
+                            }                                
+                            
                             ui.separator();
                             if ui.button("✗ Cancel").clicked() {
                                 self.pending_generate_explorer = None;
-                                self.resource_options.clear();
+                                self.resource_options = None;
                             }
                         });
                     });
@@ -1086,64 +1072,58 @@ impl eframe::App for GalaxyApp {
 
             // If we have combination options for crafting, show them
             if let Some(expl_id) = self.pending_craft_explorer {
-                // populate working list from cache keyed by explorer (explorer is the requester)
-                if self.combination_options.is_empty()
-                    && let Some(current_planet) = self.explorer_positions.get(&expl_id).copied() {
-                        if let Some(cached) = self.combination_cache.get(&current_planet) {
-                            self.combination_options.clone_from(cached);
-                        }else {
-                            // request supported resources for this expl (will populate cache)
-                            let _ = self
-                                .cmd_sender
-                                .send(UiToOrchestratorCommand::SupportedCombinations(expl_id));
-                        }
-                }
-
                 egui::Area::new(egui::Id::new("craft_resource_menu"))
-                    .fixed_pos(egui::Pos2::new(140.0, 100.0))
+                    .fixed_pos(egui::Pos2::new(100.0, 100.0))
                     .show(ctx, |ui| {
                         ui.vertical(|ui| {
                             ui.label(format!("Craft resource for Explorer {expl_id}:"));
                             ui.separator();
-                            if self.combination_options.is_empty() {
-                                ui.label("Loading...");
-                            } else {
-                                let mut chosen_combo: Option<ComplexResourceType> = None;
-                                for opt in &self.combination_options {
-                                    let label = format!("{opt:?}");
-                                    if ui.button(label).clicked() {
-                                        chosen_combo = Some(*opt);
+
+                            if let Some(comb_options) = self.combination_options.as_ref() {
+                                if comb_options.is_empty() {
+                                    ui.label("No resources can be generated here.");
+                                } else {
+                                    let mut chosen_resource: Option<ComplexResourceType> = None;
+                                    for opt in comb_options {
+                                        let label = format!("{opt:?}");
+                                        if ui.button(label).clicked() {
+                                            chosen_resource = Some(*opt);
+                                        }
+                                    }
+                                    if let Some(res) = chosen_resource {
+                                        orchestrator::logging_utils::log_internal(
+                                            Channel::Info,
+                                            payload!(
+                                                action : "explorer_generate_resource",
+                                                explorer_id : expl_id,
+                                                resource : format!("{res:?}"),
+                                            ),
+                                        );
+                                        let _ = self.cmd_sender.send(
+                                            UiToOrchestratorCommand::ExplorerCombineResource(
+                                                expl_id, res,
+                                            ),
+                                        );
+                                        let _ = self
+                                            .cmd_sender
+                                            .send(UiToOrchestratorCommand::GetExplorerSnapshot(expl_id));
+                                        let _ = self
+                                            .cmd_sender
+                                            .send(UiToOrchestratorCommand::GetExplorersPosition);
+                                        self.pending_craft_explorer = None;
+                                        self.combination_options = None;
                                     }
                                 }
-                                if let Some(combo) = chosen_combo {
-                                    orchestrator::logging_utils::log_internal(
-                                        Channel::Debug,
-                                        payload!(
-                                            action : "explorer_combine_resource",
-                                            explorer_id : expl_id,
-                                            combination : format!("{combo:?}"),
-                                        ),
-                                    );
-                                    let _ = self.cmd_sender.send(
-                                        UiToOrchestratorCommand::ExplorerCombineResource(
-                                            expl_id, combo,
-                                        ),
-                                    );
-                                    let _ = self
-                                        .cmd_sender
-                                        .send(UiToOrchestratorCommand::GetExplorerSnapshot(expl_id));
-                                    let _ = self
-                                        .cmd_sender
-                                        .send(UiToOrchestratorCommand::GetExplorersPosition);
-                                    self.pending_craft_explorer = None;
-                                    self.combination_options.clear();
-                                }
+                            }else{
+                                ui.label("Loading...");
                             }
+
                             ui.separator();
                             if ui.button("✗ Cancel").clicked() {
-                                self.pending_craft_explorer = None;
-                                self.combination_options.clear();
+                                self.pending_generate_explorer = None;
+                                self.resource_options = None;
                             }
+                            
                         });
                     });
             }
