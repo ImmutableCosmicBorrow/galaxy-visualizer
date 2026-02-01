@@ -13,27 +13,6 @@ fn canonical_edge(a: ID, b: ID) -> Option<(ID, ID)> {
     }
 }
 
-pub fn explorer_name_from_id(id: ID) -> &'static str {
-    let id_bits = id;
-    const EXPLORER_SHIFT: u32 = 7;
-    const NICO_SHIFT: u32 = 6;
-    const JACO_SHIFT: u32 = 5;
-    const ROB_SHIFT: u32 = 4;
-
-    if (id_bits & (1 << EXPLORER_SHIFT)) == 0 {
-        return "explorer";
-    }
-    if (id_bits & (1 << NICO_SHIFT)) != 0 {
-        "nico"
-    } else if (id_bits & (1 << ROB_SHIFT)) != 0 {
-        "rob"
-    } else if (id_bits & (1 << JACO_SHIFT)) != 0 {
-        "jaco"
-    } else {
-        "explorer"
-    }
-}
-
 pub fn format_bag_content(bag: &common_explorer::ExplorerBagContent) -> String {
     if bag.resources_amounts.is_empty() {
         return "bag: empty".to_string();
