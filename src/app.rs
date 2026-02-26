@@ -1,19 +1,17 @@
 use common_game::components::planet::DummyPlanetState;
 use common_game::components::resource::{BasicResourceType, ComplexResourceType};
-use common_game::logging::{Channel};
+use common_game::logging::Channel;
 use common_game::utils::ID;
 use crossbeam_channel::{Receiver, Sender};
 use eframe::egui;
 use orchestrator::ExplorerType;
+use orchestrator::payload;
 use orchestrator::planet::PlanetMap;
 use orchestrator::ui::{OrchestratorToUiUpdate, UiToOrchestratorCommand};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use orchestrator::payload;
 
-use crate::helpers::{
-    build_planets_and_edges_from_galaxy, format_bag_content,
-};
+use crate::helpers::{build_planets_and_edges_from_galaxy, format_bag_content};
 use crate::models::{Explorer, Planet, SpawnStage};
 
 pub struct GalaxyApp {
@@ -50,6 +48,12 @@ pub struct GalaxyApp {
     planet_snapshot_interval: std::time::Duration,
     explorer_snapshot_interval: std::time::Duration,
     explorer_snapshot_timer: std::time::Instant,
+    explorer_position_timer: std::time::Instant,
+    explorer_position_interval: std::time::Duration,
+    
+    // Performance optimization: cache to avoid rebuilding every frame
+    galaxy_needs_rebuild: bool,
+    cached_pos_by_id: HashMap<ID, egui::Pos2>,
 }
 
 impl GalaxyApp {
@@ -57,7 +61,7 @@ impl GalaxyApp {
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
             ExplorerType::Jaco,
-            Some(ExplorerType::Rob ),
+            None,
             None,
             2000,
         );
@@ -113,9 +117,13 @@ impl GalaxyApp {
             planets_to_refresh: Vec::new(),
             planet_displayed_charged: HashMap::new(),
             planet_snapshot_timer: std::time::Instant::now(),
-            planet_snapshot_interval: std::time::Duration::from_secs(1),
-            explorer_snapshot_interval: std::time::Duration::from_secs(1),
+            planet_snapshot_interval: std::time::Duration::from_millis(100), // 10x per second
+            explorer_snapshot_interval: std::time::Duration::from_millis(100), // 10x per second
             explorer_snapshot_timer: std::time::Instant::now(),
+            explorer_position_timer: std::time::Instant::now(),
+            explorer_position_interval: std::time::Duration::from_millis(150), // ~7x per second
+            galaxy_needs_rebuild: true,
+            cached_pos_by_id: HashMap::new(),
         }
     }
 
@@ -194,16 +202,17 @@ impl GalaxyApp {
 
         if confirm_pressed {
             let neighbors: Vec<ID> = self.selected_neighbors.iter().copied().collect();
-            self.planets.push(Planet {
-                id: planet_id,
-                pos,
-                name: planet_id.to_string(),
-                active: true,
-            });
-
+            // Don't add to self.planets manually - let the galaxy rebuild handle positioning
+            // This ensures all planets are arranged in the circle layout
+            
             self.cmd_sender
                 .send(UiToOrchestratorCommand::AddPlanet(planet_id, neighbors))
                 .expect("Failed to send AddPlanet command");
+            
+            // Request galaxy update to get proper circular positioning
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetGalaxy)
+                .expect("Failed to send GetGalaxy command");
 
             self.pending_spawn_pos = None;
             self.spawn_stage = SpawnStage::None;
@@ -296,9 +305,12 @@ impl GalaxyApp {
                 self.cmd_sender
                     .send(UiToOrchestratorCommand::AddExplorer(expl_type, planet_id))
                     .ok();
-                // Immediately request updated explorer positions
+                // Immediately request updated explorer positions and planet state
                 self.cmd_sender
                     .send(UiToOrchestratorCommand::GetExplorersPosition)
+                    .ok();
+                self.cmd_sender
+                    .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
                     .ok();
             }
             close_menu = true;
@@ -311,6 +323,14 @@ impl GalaxyApp {
             self.sending_asteroid = Some((planet_id, Instant::now()));
             // Schedule refresh after 100ms to let orchestrator process the asteroid
             self.planets_to_refresh.push((planet_id, Instant::now()));
+            // Request galaxy update to catch planet death
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetGalaxy)
+                .ok();
+            // Request planet snapshot to see damage/death
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
+                .ok();
             close_menu = true;
         }
 
@@ -328,13 +348,22 @@ impl GalaxyApp {
             self.sending_sunray = Some((planet_id, Instant::now()));
             // Schedule refresh after 100ms to let orchestrator process the sunray
             self.planets_to_refresh.push((planet_id, Instant::now()));
-            // Note: Don't increment counter here; let SendAutoSunray event handle it to avoid double-increment
+
+            // Request planet snapshot to see sunray effect
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
+                .ok();
+
             close_menu = true;
         }
 
         if start_ai {
             self.cmd_sender
                 .send(UiToOrchestratorCommand::StartPlanetAI(planet_id))
+                .ok();
+            // Request immediate update to see rocket status changes
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
                 .ok();
             close_menu = true;
         }
@@ -343,12 +372,18 @@ impl GalaxyApp {
             self.cmd_sender
                 .send(UiToOrchestratorCommand::StopPlanetAI(planet_id))
                 .ok();
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
+                .ok();
             close_menu = true;
         }
 
         if reset_ai {
             self.cmd_sender
                 .send(UiToOrchestratorCommand::ResetPlanetAI(planet_id))
+                .ok();
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
                 .ok();
             close_menu = true;
         }
@@ -404,6 +439,13 @@ impl GalaxyApp {
             self.cmd_sender
                 .send(UiToOrchestratorCommand::StartExplorerAI(explorer_id))
                 .ok();
+            // Request updates to track explorer movement
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetExplorersPosition)
+                .ok();
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetExplorerSnapshot(explorer_id))
+                .ok();
             close = true;
         }
 
@@ -411,12 +453,18 @@ impl GalaxyApp {
             self.cmd_sender
                 .send(UiToOrchestratorCommand::ResetExplorerAI(explorer_id))
                 .ok();
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetExplorersPosition)
+                .ok();
             close = true;
         }
 
         if stop_expl_ai {
             self.cmd_sender
                 .send(UiToOrchestratorCommand::StopExplorerAI(explorer_id))
+                .ok();
+            self.cmd_sender
+                .send(UiToOrchestratorCommand::GetExplorersPosition)
                 .ok();
             close = true;
         }
@@ -433,20 +481,17 @@ impl GalaxyApp {
             self.pending_generate_explorer = Some(explorer_id);
             // clear previous options
             self.resource_options = None;
-            // request supported resources from orchestrator for the planet (explorer is only requester)
-            if let Some(planet_id) = self.explorer_positions.get(&explorer_id).copied() {
-                orchestrator::logging_utils::log_internal(
-                    Channel::Info,
-                    payload!(
-                        action : "request_supported_resources",
-                        planet_id : planet_id,
-                        requester_explorer_id : explorer_id,
-                    ),
-                );
-                let _ = self
-                    .cmd_sender
-                    .send(UiToOrchestratorCommand::SupportedResources(planet_id));
-            }
+            orchestrator::logging_utils::log_internal(
+                Channel::Info,
+                payload!(
+                    action : "request_supported_resources",
+                    requester_explorer_id : explorer_id,
+                ),
+            );
+            let _ = self
+                .cmd_sender
+                .send(UiToOrchestratorCommand::SupportedResources(explorer_id));
+
             close = true;
         }
 
@@ -458,7 +503,7 @@ impl GalaxyApp {
                 Channel::Info,
                 payload!(
                     action : "request_supported_combinations",
-                    explorer_id : explorer_id,
+                    requester_explorer_id : explorer_id,
                 ),
             );
             let _ = self
@@ -523,30 +568,36 @@ impl eframe::App for GalaxyApp {
             });
         });
 
+        // Request planet snapshots on timer (not every frame!)
         if self.planet_snapshot_timer.elapsed() >= self.planet_snapshot_interval {
             for planet in &self.planets {
                 let _ = self
                     .cmd_sender
                     .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet.id));
             }
-
-            
             self.planet_snapshot_timer = std::time::Instant::now();
         }
 
+        // Request explorer snapshots on timer (not every frame!)
         if self.explorer_snapshot_timer.elapsed() >= self.explorer_snapshot_interval {
             for (explorer_id, _) in &self.explorer_positions {
                 let _ = self
                     .cmd_sender
                     .send(UiToOrchestratorCommand::GetExplorerSnapshot(*explorer_id));
             }
-
             self.explorer_snapshot_timer = std::time::Instant::now();
         }
-        
-        let _ = self
-            .cmd_sender
-            .send(UiToOrchestratorCommand::GetExplorersPosition);
+
+        // Continuously monitor explorer positions to catch movement
+        if self.explorer_position_timer.elapsed() >= self.explorer_position_interval {
+            let _ = self
+                .cmd_sender
+                .send(UiToOrchestratorCommand::GetExplorersPosition);
+            self.explorer_position_timer = std::time::Instant::now();
+        }
+
+        // Only request explorer positions periodically, not every frame
+        // Use events and explicit requests instead
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // Check for updates from orchestrator thread
@@ -554,6 +605,7 @@ impl eframe::App for GalaxyApp {
                 match cmd {
                     OrchestratorToUiUpdate::Galaxy(galaxy) => {
                         self.galaxy = Some(galaxy);
+                        self.galaxy_needs_rebuild = true;
                     }
                     OrchestratorToUiUpdate::DeadPlanet(id) => {
                         self.planets.iter_mut().for_each(|planet| {
@@ -561,6 +613,10 @@ impl eframe::App for GalaxyApp {
                                 planet.active = false;
                             }
                         });
+                        // Request galaxy update to ensure we have latest state
+                        self.cmd_sender
+                            .send(UiToOrchestratorCommand::GetGalaxy)
+                            .ok();
                         // Remove any explorers on this planet from the positions map
                         let dead_explorers: Vec<ID> = self
                             .explorer_positions
@@ -584,8 +640,9 @@ impl eframe::App for GalaxyApp {
                         }
 
                         // Request fresh explorer positions from orchestrator
-                        let _ =
-                            self.cmd_sender.send(UiToOrchestratorCommand::GetExplorersPosition);
+                        let _ = self
+                            .cmd_sender
+                            .send(UiToOrchestratorCommand::GetExplorersPosition);
                     }
                     OrchestratorToUiUpdate::ExplorersPosition(positions) => {
                         orchestrator::logging_utils::log_internal(
@@ -634,7 +691,7 @@ impl eframe::App for GalaxyApp {
                             Channel::Info,
                             payload!(
                                 action : "received_supported_combinations",
-                                explorer_id : explorer_id,  
+                                explorer_id : explorer_id,
                                 supported_combo: format!("{:?}", combinations)
                             ),
                         );
@@ -671,6 +728,10 @@ impl eframe::App for GalaxyApp {
                         self.sending_sunray = Some((planet_id, Instant::now()));
                         // Schedule refresh after a short delay to let orchestrator process the sunray
                         self.planets_to_refresh.push((planet_id, Instant::now()));
+                        // Request immediate snapshot to catch rocket status
+                        self.cmd_sender
+                            .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
+                            .ok();
                         // Clamp displayed charged counter to the maximum number of energy cells
                         if let Some(state) = self.planet_states.get(&planet_id) {
                             let max_charged = state.energy_cells.len() as f32;
@@ -688,6 +749,14 @@ impl eframe::App for GalaxyApp {
                         self.sending_asteroid = Some((planet_id, Instant::now()));
                         // Schedule refresh after 100ms to let orchestrator process the asteroid
                         self.planets_to_refresh.push((planet_id, Instant::now()));
+                        // Request galaxy update to catch planet death
+                        self.cmd_sender
+                            .send(UiToOrchestratorCommand::GetGalaxy)
+                            .ok();
+                        // Request immediate snapshot to catch planet death or damage
+                        self.cmd_sender
+                            .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id))
+                            .ok();
                         orchestrator::logging_utils::log_internal(
                             Channel::Debug,
                             payload!(
@@ -701,13 +770,17 @@ impl eframe::App for GalaxyApp {
 
             // reserve the whole screen for painting
             let canvas_rect = ui.available_rect_before_wrap();
-            if let Some(galaxy) = &self.galaxy {
-                let center = canvas_rect.center();
-                let radius = (canvas_rect.width().min(canvas_rect.height()) * 0.35).max(50.0);
-                let (planets, edges) =
-                    build_planets_and_edges_from_galaxy(galaxy, center, radius);
-                self.planets = planets;
-                self.edges = edges;
+            
+            // Only rebuild galaxy layout when it changes, not every frame!
+            if self.galaxy_needs_rebuild {
+                if let Some(galaxy) = &self.galaxy {
+                    let center = canvas_rect.center();
+                    let radius = (canvas_rect.width().min(canvas_rect.height()) * 0.35).max(50.0);
+                    let (planets, edges) = build_planets_and_edges_from_galaxy(galaxy, center, radius);
+                    self.planets = planets;
+                    self.edges = edges;
+                    self.galaxy_needs_rebuild = false;
+                }
             }
             let (response, painter) = ui.allocate_painter(canvas_rect.size(), egui::Sense::click());
 
@@ -740,7 +813,9 @@ impl eframe::App for GalaxyApp {
                     // collect neighbors from galaxy snapshot
                     let mut neighbors: Vec<ID> = Vec::new();
                     if let Some(galaxy) = &self.galaxy {
-                        let guard = galaxy.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+                        let guard = galaxy
+                            .read()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
                         if let Some(node) = guard.get(&current_planet) {
                             neighbors = node.neighbors_snapshot();
                         }
@@ -778,9 +853,9 @@ impl eframe::App for GalaxyApp {
                                                 ),
                                             );
                                             // request refreshed positions
-                                            let _ = self
-                                                .cmd_sender
-                                                .send(UiToOrchestratorCommand::GetExplorersPosition);
+                                            let _ = self.cmd_sender.send(
+                                                UiToOrchestratorCommand::GetExplorersPosition,
+                                            );
                                             // clear pending selector
                                             self.pending_move_explorer = None;
                                             self.pending_move_pos = None;
@@ -803,12 +878,16 @@ impl eframe::App for GalaxyApp {
             }
 
             // draw edges (from neighbors_snapshot)
-            let mut pos_by_id: HashMap<ID, egui::Pos2> = HashMap::new();
-            for planet in &self.planets {
-                pos_by_id.insert(planet.id, planet.pos);
+            // Update cached positions only if galaxy was rebuilt
+            if self.cached_pos_by_id.is_empty() || self.cached_pos_by_id.len() != self.planets.len() {
+                self.cached_pos_by_id.clear();
+                for planet in &self.planets {
+                    self.cached_pos_by_id.insert(planet.id, planet.pos);
+                }
             }
+            
             for (a, b) in &self.edges {
-                if let (Some(pa), Some(pb)) = (pos_by_id.get(a), pos_by_id.get(b)) {
+                if let (Some(pa), Some(pb)) = (self.cached_pos_by_id.get(a), self.cached_pos_by_id.get(b)) {
                     painter.line_segment(
                         [*pa, *pb],
                         egui::Stroke::new(1.0, egui::Color32::from_white_alpha(30)),
@@ -899,7 +978,8 @@ impl eframe::App for GalaxyApp {
                     painter.circle_filled(explorer_pos, explorer_radius, egui::Color32::YELLOW);
 
                     // Draw explorer label with name, ID, and bag content
-                    let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
+                    let explorer_name =
+                        orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
                     let bag_line = match self.explorer_bags.get(explorer_id) {
                         Some(bag) => format_bag_content(bag),
                         None => "bag: loading".to_string(),
@@ -935,13 +1015,17 @@ impl eframe::App for GalaxyApp {
                         .planet_displayed_charged
                         .entry(planet.id)
                         .or_insert(target_charged);
-                    let speed_per_sec = 12.0; // units per second
+                    let speed_per_sec = 20.0; // units per second
                     let step = speed_per_sec * dt;
-                    if (*displayed - target_charged).abs() > 0.01
-                        && *displayed < target_charged {
+                    
+                    // Animate in BOTH directions (up and down)
+                    if (*displayed - target_charged).abs() > 0.01 {
+                        if *displayed < target_charged {
                             *displayed = (*displayed + step).min(target_charged);
+                        } else {
+                            *displayed = (*displayed - step).max(target_charged);
                         }
-                        // Don't animate down - keep optimistic values visible until confirmed
+                    }
 
                     // use the animated value when building text
                     let displayed_charged_usize = (*displayed).round() as usize;
@@ -957,23 +1041,7 @@ impl eframe::App for GalaxyApp {
                         state.energy_cells.len()
                     ));
 
-                    // Draw state text with semi-transparent background
-                    let text_galley = painter.layout_no_wrap(
-                        state_text.clone(),
-                        egui::FontId::proportional(12.0),
-                        egui::Color32::WHITE,
-                    );
-
-                    let text_rect =
-                        egui::Align2::CENTER_TOP.anchor_size(state_pos, text_galley.size());
-
-                    // Background box
-                    painter.rect_filled(
-                        text_rect.expand(4.0),
-                        4.0,
-                        egui::Color32::from_rgba_unmultiplied(0, 0, 0, 180),
-                    );
-
+                    // Draw state text - use simpler rendering without extra layout
                     painter.text(
                         state_pos,
                         egui::Align2::CENTER_TOP,
@@ -1046,9 +1114,9 @@ impl eframe::App for GalaxyApp {
                                                 expl_id, res,
                                             ),
                                         );
-                                        let _ = self
-                                            .cmd_sender
-                                            .send(UiToOrchestratorCommand::GetExplorerSnapshot(expl_id));
+                                        let _ = self.cmd_sender.send(
+                                            UiToOrchestratorCommand::GetExplorerSnapshot(expl_id),
+                                        );
                                         let _ = self
                                             .cmd_sender
                                             .send(UiToOrchestratorCommand::GetExplorersPosition);
@@ -1056,11 +1124,10 @@ impl eframe::App for GalaxyApp {
                                         self.resource_options = None;
                                     }
                                 }
-                                
-                            }else{
+                            } else {
                                 ui.label("Loading...");
-                            }                                
-                            
+                            }
+
                             ui.separator();
                             if ui.button("✗ Cancel").clicked() {
                                 self.pending_generate_explorer = None;
@@ -1104,9 +1171,9 @@ impl eframe::App for GalaxyApp {
                                                 expl_id, res,
                                             ),
                                         );
-                                        let _ = self
-                                            .cmd_sender
-                                            .send(UiToOrchestratorCommand::GetExplorerSnapshot(expl_id));
+                                        let _ = self.cmd_sender.send(
+                                            UiToOrchestratorCommand::GetExplorerSnapshot(expl_id),
+                                        );
                                         let _ = self
                                             .cmd_sender
                                             .send(UiToOrchestratorCommand::GetExplorersPosition);
@@ -1114,7 +1181,7 @@ impl eframe::App for GalaxyApp {
                                         self.combination_options = None;
                                     }
                                 }
-                            }else{
+                            } else {
                                 ui.label("Loading...");
                             }
 
@@ -1123,7 +1190,6 @@ impl eframe::App for GalaxyApp {
                                 self.pending_generate_explorer = None;
                                 self.resource_options = None;
                             }
-                            
                         });
                     });
             }
@@ -1223,5 +1289,20 @@ impl eframe::App for GalaxyApp {
 
             // don't block the UI thread here
         });
+        
+        // Only request repaints when we have active animations
+        if self.sending_asteroid.is_some() 
+            || self.sending_sunray.is_some() 
+            || !self.planets_to_refresh.is_empty()
+            || self.planet_displayed_charged.iter().any(|(id, displayed)| {
+                if let Some(state) = self.planet_states.get(id) {
+                    (*displayed - state.charged_cells_count as f32).abs() > 0.01
+                } else {
+                    false
+                }
+            })
+        {
+            ctx.request_repaint();
+        }
     }
 }
