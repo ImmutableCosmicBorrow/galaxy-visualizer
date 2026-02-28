@@ -60,8 +60,8 @@ impl GalaxyApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
-            ExplorerType::Jaco,
-            None,
+            ExplorerType::Rob,
+            Some(ExplorerType::Nico),
             None,
             2000,
         );
@@ -117,11 +117,11 @@ impl GalaxyApp {
             planets_to_refresh: Vec::new(),
             planet_displayed_charged: HashMap::new(),
             planet_snapshot_timer: std::time::Instant::now(),
-            planet_snapshot_interval: std::time::Duration::from_millis(100), // 10x per second
-            explorer_snapshot_interval: std::time::Duration::from_millis(100), // 10x per second
+            planet_snapshot_interval: std::time::Duration::from_millis(200), 
+            explorer_snapshot_interval: std::time::Duration::from_millis(200), 
             explorer_snapshot_timer: std::time::Instant::now(),
             explorer_position_timer: std::time::Instant::now(),
-            explorer_position_interval: std::time::Duration::from_millis(150), // ~7x per second
+            explorer_position_interval: std::time::Duration::from_millis(200), 
             galaxy_needs_rebuild: true,
             cached_pos_by_id: HashMap::new(),
         }

@@ -1,6 +1,7 @@
 use common_game::utils::ID;
 use eframe::egui;
 use orchestrator::planet::PlanetMap;
+use orchestrator::{id::PlanetKind, id::IdManager};
 use std::collections::HashSet;
 
 use crate::models::Planet;
@@ -25,6 +26,18 @@ pub fn format_bag_content(bag: &common_explorer::ExplorerBagContent) -> String {
         .collect();
     entries.sort();
     format!("bag: {}", entries.join(", "))
+}
+
+pub fn planet_group_name_from_id(id: ID) -> &'static str {
+    match IdManager::planet_kind(id) {
+        PlanetKind::Trip => "Trip",
+        PlanetKind::Rustrelli => "Rustrelli",
+        PlanetKind::Luna4 => "Luna4",
+        PlanetKind::RustyCrab => "Rusty Crabs",
+        PlanetKind::Enterprise => "Enterprise",
+        PlanetKind::Orbitron => "Orbitron",
+        PlanetKind::Houston => "Houston",
+    }
 }
 
 // Map the orchestrator's galaxy snapshot into renderable planets + edges for egui
@@ -54,7 +67,7 @@ pub fn build_planets_and_edges_from_galaxy(
         planets.push(Planet {
             id: *id,
             pos,
-            name: format!("Planet {id}"),
+            name: format!("{} ({id})", planet_group_name_from_id(*id)),
             active: guard.get(id).is_none_or(|p| p.is_alive()),
         });
     }
