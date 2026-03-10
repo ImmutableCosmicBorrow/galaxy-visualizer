@@ -1,6 +1,7 @@
 use common_game::utils::ID;
 use eframe::egui;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 use crate::helpers::format_bag_content;
 use crate::models::Planet;
@@ -67,6 +68,7 @@ pub fn draw_planets_and_explorers(
 }
 
 #[allow(clippy::cast_precision_loss)]
+#[allow(clippy::too_many_arguments)]
 fn draw_single_planet(
     ctx: &egui::Context,
     painter: &egui::Painter,
@@ -210,6 +212,9 @@ fn draw_explorers_on_planet(
 // Planet state overlay (energy cells, rocket icon, …)
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::cast_sign_loss)]
+#[allow(clippy::cast_precision_loss)]
+#[allow(clippy::cast_possible_truncation)]
 fn draw_planet_state(
     ctx: &egui::Context,
     painter: &egui::Painter,
@@ -251,11 +256,12 @@ fn draw_planet_state(
         if state.has_rocket {
             state_text.push_str("🚀 ");
         }
-        state_text.push_str(&format!(
+        let _ = write!(
+            state_text,
             "⚡{}/{}",
             displayed_charged_usize,
             state.energy_cells.len()
-        ));
+        );
 
         // Draw state text - use simpler rendering without extra layout
         painter.text(

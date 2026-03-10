@@ -21,6 +21,7 @@ impl AnimationState {
     }
 
     /// Returns `true` when there are in-flight animations that need continuous repaints.
+    #[allow(clippy::cast_precision_loss)]
     pub fn has_active_animations(&self, planet_states: &HashMap<ID, DummyPlanetState>) -> bool {
         self.sending_asteroid.is_some()
             || self.sending_sunray.is_some()

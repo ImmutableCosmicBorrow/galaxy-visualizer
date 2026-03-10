@@ -6,7 +6,8 @@ use crate::state::AnimationState;
 // ---------------------------------------------------------------------------
 // Asteroid visual effect
 // ---------------------------------------------------------------------------
-
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
 pub fn draw_asteroid_animation(
     painter: &egui::Painter,
     canvas_rect: egui::Rect,
@@ -59,7 +60,8 @@ pub fn draw_asteroid_animation(
 // ---------------------------------------------------------------------------
 // Sunray visual effect
 // ---------------------------------------------------------------------------
-
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
 pub fn draw_sunray_animation(
     painter: &egui::Painter,
     canvas_rect: egui::Rect,

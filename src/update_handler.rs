@@ -10,6 +10,7 @@ use crate::comms::OrchestratorComms;
 use crate::state::{AnimationState, ExplorerState, GalaxyState, UiState};
 
 /// Drain all pending messages from the orchestrator and update application state.
+#[allow(clippy::cast_precision_loss)]
 pub fn handle_orchestrator_updates(
     comms: &OrchestratorComms,
     galaxy_state: &mut GalaxyState,
@@ -173,6 +174,7 @@ fn handle_supported_resources(
     }
 }
 
+#[allow(clippy::cast_precision_loss)]
 fn handle_auto_sunray(
     planet_id: ID,
     galaxy_state: &GalaxyState,

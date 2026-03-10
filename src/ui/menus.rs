@@ -144,6 +144,7 @@ fn show_neighbor_selection_menu(
 // Planet context menu
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_lines)]
 pub fn show_context_menu(
     ctx: &egui::Context,
     pos: egui::Pos2,
@@ -216,8 +217,7 @@ pub fn show_context_menu(
         let explorer_count = explorer_state.explorer_positions.len();
         if explorer_count >= 2 {
             let msg = format!(
-                "❗ Explorer limit reached ({} explorers), cannot spawn more explorers.",
-                explorer_count
+                "❗ Explorer limit reached ({explorer_count} explorers), cannot spawn more explorers.",
             );
             orchestrator::logging_utils::log_internal(
                 LogTarget::General,

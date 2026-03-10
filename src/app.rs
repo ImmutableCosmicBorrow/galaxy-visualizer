@@ -92,7 +92,7 @@ impl eframe::App for GalaxyApp {
             }
         }
         if self.timers.should_poll_explorer_snapshots() {
-            for (explorer_id, _) in &self.explorer_state.explorer_positions {
+            for explorer_id in self.explorer_state.explorer_positions.keys() {
                 self.comms
                     .send(UiToOrchestratorCommand::GetExplorerSnapshot(*explorer_id));
             }

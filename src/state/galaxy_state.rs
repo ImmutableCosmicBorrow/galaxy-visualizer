@@ -30,15 +30,15 @@ impl GalaxyState {
 
     /// Rebuild the circular layout from the galaxy snapshot (only when flagged dirty).
     pub fn rebuild_if_needed(&mut self, canvas_rect: egui::Rect) {
-        if self.galaxy_needs_rebuild {
-            if let Some(galaxy) = &self.galaxy {
-                let center = canvas_rect.center();
-                let radius = (canvas_rect.width().min(canvas_rect.height()) * 0.35).max(50.0);
-                let (planets, edges) = build_planets_and_edges_from_galaxy(galaxy, center, radius);
-                self.planets = planets;
-                self.edges = edges;
-                self.galaxy_needs_rebuild = false;
-            }
+        if self.galaxy_needs_rebuild
+            && let Some(galaxy) = &self.galaxy
+        {
+            let center = canvas_rect.center();
+            let radius = (canvas_rect.width().min(canvas_rect.height()) * 0.35).max(50.0);
+            let (planets, edges) = build_planets_and_edges_from_galaxy(galaxy, center, radius);
+            self.planets = planets;
+            self.edges = edges;
+            self.galaxy_needs_rebuild = false;
         }
     }
 
