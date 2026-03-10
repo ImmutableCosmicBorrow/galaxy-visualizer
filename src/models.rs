@@ -2,6 +2,7 @@ use common_game::utils::ID;
 use eframe::egui;
 use orchestrator::ExplorerType;
 
+#[derive(Clone)]
 pub struct Planet {
     pub id: ID,
     pub pos: egui::Pos2, // Where it is on screen

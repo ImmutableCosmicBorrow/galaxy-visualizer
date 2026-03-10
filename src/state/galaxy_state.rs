@@ -2,7 +2,7 @@ use common_game::components::planet::DummyPlanetState;
 use common_game::utils::ID;
 use eframe::egui;
 use orchestrator::planet::PlanetMap;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::helpers::build_planets_and_edges_from_galaxy;
 use crate::models::Planet;
@@ -44,14 +44,45 @@ impl GalaxyState {
         let should_rebuild =
             self.galaxy_needs_rebuild || self.planets.is_empty() || center_moved || size_changed;
 
-        if should_rebuild
-            && let Some(galaxy) = &self.galaxy
-        {
+        if should_rebuild && let Some(galaxy) = &self.galaxy {
+            // Snapshot dead planets and their edges before the rebuild
+            // so we can merge them back – the orchestrator removes dead
+            // planets from the galaxy map, but we still want to show them
+            // (grayed-out) on the canvas.
+            let dead_planets: Vec<Planet> =
+                self.planets.iter().filter(|p| !p.active).cloned().collect();
+            let dead_ids: HashSet<ID> = dead_planets.iter().map(|p| p.id).collect();
+            let dead_edges: Vec<(ID, ID)> = self
+                .edges
+                .iter()
+                .filter(|(a, b)| dead_ids.contains(a) || dead_ids.contains(b))
+                .copied()
+                .collect();
+
             let radius = (canvas_rect.width().min(canvas_rect.height()) * 0.35).max(50.0);
             let (planets, edges) =
                 build_planets_and_edges_from_galaxy(galaxy, layout_center, radius);
+
+            // Merge: keep new planets, then re-add dead ones the map no
+            // longer contains.
+            let live_ids: HashSet<ID> = planets.iter().map(|p| p.id).collect();
             self.planets = planets;
+            for dead in dead_planets {
+                if !live_ids.contains(&dead.id) {
+                    self.planets.push(dead);
+                }
+            }
+
+            // Same for edges: keep new set, re-add edges touching dead
+            // planets that the orchestrator pruned.
+            let live_edge_set: HashSet<(ID, ID)> = edges.iter().copied().collect();
             self.edges = edges;
+            for edge in dead_edges {
+                if !live_edge_set.contains(&edge) {
+                    self.edges.push(edge);
+                }
+            }
+
             self.galaxy_needs_rebuild = false;
             self.last_layout_center = Some(layout_center);
             self.last_canvas_size = Some(canvas_size);

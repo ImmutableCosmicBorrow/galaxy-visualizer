@@ -1,4 +1,3 @@
-use common_game::components::planet::DummyPlanetState;
 use common_game::utils::ID;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -20,18 +19,16 @@ impl AnimationState {
         }
     }
 
-    /// Returns `true` when there are in-flight animations that need continuous repaints.
-    #[allow(clippy::cast_precision_loss)]
-    pub fn has_active_animations(&self, planet_states: &HashMap<ID, DummyPlanetState>) -> bool {
+    /// Returns `true` when there are in-flight visual animations (asteroid /
+    /// sunray effects or pending refresh requests) that need fast repaints.
+    ///
+    /// NOTE: `planet_displayed_charged` (the smooth counter animation) is
+    /// intentionally excluded — it is a subtle cosmetic effect that can
+    /// piggyback on repaints triggered by other sources instead of driving
+    /// a continuous 60 fps loop on its own.
+    pub fn has_active_animations(&self) -> bool {
         self.sending_asteroid.is_some()
             || self.sending_sunray.is_some()
             || !self.planets_to_refresh.is_empty()
-            || self.planet_displayed_charged.iter().any(|(id, displayed)| {
-                if let Some(state) = planet_states.get(id) {
-                    (*displayed - state.charged_cells_count as f32).abs() > 0.01
-                } else {
-                    false
-                }
-            })
     }
 }

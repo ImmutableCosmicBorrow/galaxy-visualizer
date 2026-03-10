@@ -105,9 +105,13 @@ fn handle_dead_planet(
             planet.active = false;
         }
     });
-    // Request galaxy update to ensure we have latest state
+    // Request galaxy update to ensure we have latest state.
     comms.send(UiToOrchestratorCommand::GetGalaxy);
-    // Remove any explorers on this planet from the positions map
+
+    // Clean up any pending UI operations that reference explorers on
+    // the dead planet, but do NOT eagerly remove the explorers from
+    // the position/bag maps – let the normal polling cycle sync that
+    // so the dots don't vanish in the same frame as the planet death.
     let dead_explorers: Vec<ID> = explorer_state
         .explorer_positions
         .iter()
@@ -115,22 +119,16 @@ fn handle_dead_planet(
         .map(|(explorer_id, _)| *explorer_id)
         .collect();
 
-    for explorer_id in dead_explorers {
-        explorer_state.explorer_positions.remove(&explorer_id);
-        explorer_state.explorer_bags.remove(&explorer_id);
-        // Clean up any pending operations for dead explorers
-        if ui_state.pending_generate_explorer == Some(explorer_id) {
+    for explorer_id in &dead_explorers {
+        if ui_state.pending_generate_explorer == Some(*explorer_id) {
             ui_state.pending_generate_explorer = None;
             ui_state.resource_options = None;
         }
-        if ui_state.pending_craft_explorer == Some(explorer_id) {
+        if ui_state.pending_craft_explorer == Some(*explorer_id) {
             ui_state.pending_craft_explorer = None;
             ui_state.combination_options = None;
         }
     }
-
-    // Request fresh explorer positions from orchestrator
-    comms.send(UiToOrchestratorCommand::GetExplorersPosition);
 }
 
 fn handle_supported_combinations(

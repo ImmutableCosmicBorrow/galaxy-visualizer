@@ -22,12 +22,13 @@ pub struct GalaxyApp {
 
 impl GalaxyApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+        let game_step = 2000;
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
             ExplorerType::Nico,
-            Some(ExplorerType::Jaco),
+            Some(ExplorerType::Rob),
             None,
-            2000,
+            game_step,
         );
 
         cmd_sender
@@ -59,7 +60,7 @@ impl GalaxyApp {
             explorer_state: ExplorerState::new(),
             ui_state: UiState::new(),
             animation_state: AnimationState::new(),
-            timers: PollingTimers::new(),
+            timers: PollingTimers::new(game_step),
             comms: OrchestratorComms::new(cmd_sender, update_receiver),
         }
     }
@@ -87,8 +88,10 @@ impl eframe::App for GalaxyApp {
         // ── Timer-based polling (not every frame!) ──────────────────────
         if self.timers.should_poll_planet_snapshots() {
             for planet in &self.galaxy_state.planets {
-                self.comms
-                    .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet.id));
+                if planet.active {
+                    self.comms
+                        .send(UiToOrchestratorCommand::GetPlanetSnapshot(planet.id));
+                }
             }
         }
         if self.timers.should_poll_explorer_snapshots() {
@@ -100,6 +103,23 @@ impl eframe::App for GalaxyApp {
         if self.timers.should_poll_explorer_positions() {
             self.comms
                 .send(UiToOrchestratorCommand::GetExplorersPosition);
+        }
+
+        // ── Drain expired refresh requests ─────────────────────────
+        {
+            let refresh_delay = std::time::Duration::from_millis(100);
+            let mut i = 0;
+            while i < self.animation_state.planets_to_refresh.len() {
+                let (planet_id, queued_at) = self.animation_state.planets_to_refresh[i];
+                if queued_at.elapsed() >= refresh_delay {
+                    self.comms.send(
+                        orchestrator::ui::UiToOrchestratorCommand::GetPlanetSnapshot(planet_id),
+                    );
+                    self.animation_state.planets_to_refresh.swap_remove(i);
+                } else {
+                    i += 1;
+                }
+            }
         }
 
         // ── Central panel (canvas) ──────────────────────────────────────
@@ -223,12 +243,18 @@ impl eframe::App for GalaxyApp {
             // don't block the UI thread here
         });
 
-        // ── Only request repaints when we have active animations ────────
-        if self
-            .animation_state
-            .has_active_animations(&self.galaxy_state.planet_states)
-        {
-            ctx.request_repaint();
+        // ── Schedule next repaint ───────────────────────────────────────
+        if self.animation_state.has_active_animations() {
+            // Fast repaints for visual effects (asteroid / sunray animations)
+            ctx.request_repaint_after(std::time::Duration::from_millis(16));
+        } else {
+            // Low-frequency repaint so polling timers keep firing and
+            // orchestrator messages get drained even when the user is not
+            // interacting.  This replaces the old approach that coupled
+            // polling to the animation loop.
+            let next_poll = self.timers.time_until_next_poll();
+            // Add a small margin so we don't wake up just before the timer.
+            ctx.request_repaint_after(next_poll + std::time::Duration::from_millis(50));
         }
     }
 }

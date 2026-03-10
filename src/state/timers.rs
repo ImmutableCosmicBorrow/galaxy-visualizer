@@ -10,14 +10,14 @@ pub struct PollingTimers {
 }
 
 impl PollingTimers {
-    pub fn new() -> Self {
+    pub fn new(game_step: u64) -> Self {
         Self {
             planet_snapshot_timer: Instant::now(),
-            planet_snapshot_interval: Duration::from_millis(200),
+            planet_snapshot_interval: Duration::from_millis(game_step),
             explorer_snapshot_timer: Instant::now(),
-            explorer_snapshot_interval: Duration::from_millis(200),
+            explorer_snapshot_interval: Duration::from_millis(game_step),
             explorer_position_timer: Instant::now(),
-            explorer_position_interval: Duration::from_millis(200),
+            explorer_position_interval: Duration::from_millis(game_step),
         }
     }
 
@@ -49,5 +49,21 @@ impl PollingTimers {
         } else {
             false
         }
+    }
+
+    /// How long until the next timer fires (minimum across all three).
+    pub fn time_until_next_poll(&self) -> Duration {
+        let remaining = |timer: &Instant, interval: &Duration| -> Duration {
+            interval.saturating_sub(timer.elapsed())
+        };
+        remaining(&self.planet_snapshot_timer, &self.planet_snapshot_interval)
+            .min(remaining(
+                &self.explorer_snapshot_timer,
+                &self.explorer_snapshot_interval,
+            ))
+            .min(remaining(
+                &self.explorer_position_timer,
+                &self.explorer_position_interval,
+            ))
     }
 }

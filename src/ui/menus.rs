@@ -92,7 +92,7 @@ fn show_neighbor_selection_menu(
 
                 for planet in planets {
                     let mut is_selected = ui_state.selected_neighbors.contains(&planet.id);
-                    ui.checkbox(&mut is_selected, format!("Planet {}", planet.id));
+                    ui.checkbox(&mut is_selected, planet.name.clone());
                     if is_selected {
                         ui_state.selected_neighbors.insert(planet.id);
                     } else {
