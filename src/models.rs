@@ -16,6 +16,7 @@ pub struct Explorer {
     pub _bag: common_explorer::ExplorerBagContent,
 }
 
+#[derive(Clone, Copy)]
 pub enum SpawnStage {
     None,
     SelectingType,

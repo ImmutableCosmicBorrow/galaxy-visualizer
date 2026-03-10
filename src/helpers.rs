@@ -1,7 +1,7 @@
 use common_game::utils::ID;
 use eframe::egui;
 use orchestrator::planet::PlanetMap;
-use orchestrator::{id::PlanetKind, id::IdManager};
+use orchestrator::{id::IdManager, id::PlanetKind};
 use std::collections::HashSet;
 
 use crate::models::Planet;
