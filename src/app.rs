@@ -115,7 +115,9 @@ impl eframe::App for GalaxyApp {
 
             // 2. Rebuild galaxy layout if the data changed
             let canvas_rect = ui.available_rect_before_wrap();
-            self.galaxy_state.rebuild_if_needed(canvas_rect);
+            let layout_center = ctx.content_rect().center();
+            self.galaxy_state
+                .rebuild_if_needed(canvas_rect, layout_center);
 
             // 3. Allocate painter
             let (response, painter) = ui.allocate_painter(canvas_rect.size(), egui::Sense::click());

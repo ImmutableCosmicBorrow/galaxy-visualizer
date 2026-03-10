@@ -14,6 +14,8 @@ pub struct GalaxyState {
     pub planet_states: HashMap<ID, DummyPlanetState>,
     pub galaxy_needs_rebuild: bool,
     pub cached_pos_by_id: HashMap<ID, egui::Pos2>,
+    pub last_layout_center: Option<egui::Pos2>,
+    pub last_canvas_size: Option<egui::Vec2>,
 }
 
 impl GalaxyState {
@@ -25,30 +27,44 @@ impl GalaxyState {
             planet_states: HashMap::new(),
             galaxy_needs_rebuild: true,
             cached_pos_by_id: HashMap::new(),
+            last_layout_center: None,
+            last_canvas_size: None,
         }
     }
 
     /// Rebuild the circular layout from the galaxy snapshot (only when flagged dirty).
-    pub fn rebuild_if_needed(&mut self, canvas_rect: egui::Rect) {
-        if self.galaxy_needs_rebuild
+    pub fn rebuild_if_needed(&mut self, canvas_rect: egui::Rect, layout_center: egui::Pos2) {
+        let canvas_size = canvas_rect.size();
+        let center_moved = self
+            .last_layout_center
+            .is_none_or(|prev| prev.distance(layout_center) > 0.5);
+        let size_changed = self.last_canvas_size.is_none_or(|prev| {
+            (prev.x - canvas_size.x).abs() > 0.5 || (prev.y - canvas_size.y).abs() > 0.5
+        });
+        let should_rebuild =
+            self.galaxy_needs_rebuild || self.planets.is_empty() || center_moved || size_changed;
+
+        if should_rebuild
             && let Some(galaxy) = &self.galaxy
         {
-            let center = canvas_rect.center();
             let radius = (canvas_rect.width().min(canvas_rect.height()) * 0.35).max(50.0);
-            let (planets, edges) = build_planets_and_edges_from_galaxy(galaxy, center, radius);
+            let (planets, edges) =
+                build_planets_and_edges_from_galaxy(galaxy, layout_center, radius);
             self.planets = planets;
             self.edges = edges;
             self.galaxy_needs_rebuild = false;
+            self.last_layout_center = Some(layout_center);
+            self.last_canvas_size = Some(canvas_size);
         }
     }
 
     /// Rebuild the id → screen-position cache when the planet list changes.
     pub fn refresh_pos_cache(&mut self) {
-        if self.cached_pos_by_id.is_empty() || self.cached_pos_by_id.len() != self.planets.len() {
-            self.cached_pos_by_id.clear();
-            for planet in &self.planets {
-                self.cached_pos_by_id.insert(planet.id, planet.pos);
-            }
+        // Rebuild every frame: planet positions can change when layout center/size changes,
+        // even if the number of planets stays the same.
+        self.cached_pos_by_id.clear();
+        for planet in &self.planets {
+            self.cached_pos_by_id.insert(planet.id, planet.pos);
         }
     }
 }
