@@ -67,7 +67,7 @@ pub fn show_move_selector(
                                 );
                                 comms.send(UiToOrchestratorCommand::ManualMoveExplorer(
                                     explorer_id,
-                                    current_planet,
+                                    Some(current_planet),
                                     *nid,
                                 ));
                                 // request refreshed positions
@@ -212,7 +212,7 @@ pub fn show_craft_resource_popup(
                                 LogTarget::General,
                                 Channel::Info,
                                 payload!(
-                                    action : "explorer_generate_resource",
+                                    action : "explorer_craft_resource",
                                     explorer_id : expl_id,
                                     resource : format!("{res:?}"),
                                 ),
@@ -232,8 +232,8 @@ pub fn show_craft_resource_popup(
 
                 ui.separator();
                 if ui.button("✗ Cancel").clicked() {
-                    ui_state.pending_generate_explorer = None;
-                    ui_state.resource_options = None;
+                    ui_state.pending_craft_explorer = None;
+                    ui_state.combination_options = None;
                 }
             });
         });
