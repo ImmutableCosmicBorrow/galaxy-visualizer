@@ -23,15 +23,13 @@ pub fn show_top_panel(
                         "Failed to send SwitchGameMode command",
                     );
                 }
-                if ui.button("End Game").clicked() {
-                    if end_game_timestamp.is_none() {
-                        comms.send_expect(
-                            UiToOrchestratorCommand::EndGame,
-                            "Failed to send EndGame command",
-                        );
-                        *end_game_timestamp = Some(Instant::now());
-                        ui_state.explorer_limit_popup = Some("Shutting down gracefully...".to_owned());
-                    }
+                if ui.button("End Game").clicked() && end_game_timestamp.is_none() {
+                    comms.send_expect(
+                        UiToOrchestratorCommand::EndGame,
+                        "Failed to send EndGame command",
+                    );
+                    *end_game_timestamp = Some(Instant::now());
+                    ui_state.explorer_limit_popup = Some("Shutting down".to_owned());
                 }
                 if ui.button("Pause Game").clicked() {
                     comms.send_expect(

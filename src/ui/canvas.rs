@@ -115,14 +115,8 @@ fn draw_single_planet(
 
     if planet.active {
         painter.circle_filled(planet.pos, radius, egui::Color32::from_rgb(100, 200, 255));
-    } else {
-        painter.circle_filled(
-            planet.pos,
-            radius,
-            egui::Color32::from_rgba_unmultiplied(50, 50, 50, 200),
-        );
     }
-
+    
     // draw explorers on this planet as small colored dots
     draw_explorers_on_planet(
         ctx,

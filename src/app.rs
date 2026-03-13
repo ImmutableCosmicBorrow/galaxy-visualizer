@@ -84,19 +84,23 @@ impl eframe::App for GalaxyApp {
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // ── Handle window close (X button) ──────────────────────────────
-        if ctx.input(|i| i.viewport().close_requested()) {
-            if self.end_game_timestamp.is_none() {
-                self.comms.send_expect(
-                    UiToOrchestratorCommand::EndGame,
-                    "Failed to send EndGame command",
-                );
-                self.end_game_timestamp = Some(Instant::now());
-                self.ui_state.explorer_limit_popup = Some("Shutting down gracefully...".to_owned());
-            }
+        if ctx.input(|i| i.viewport().close_requested()) && self.end_game_timestamp.is_none() {
+            self.comms.send_expect(
+                UiToOrchestratorCommand::EndGame,
+                "Failed to send EndGame command",
+            );
+            self.end_game_requested = true;
+            self.end_game_timestamp = Some(Instant::now());
+            self.ui_state.explorer_limit_popup = Some("All the explorers have been killed. Shutting down".to_owned());
         }
 
         // ── Top control bar ─────────────────────────────────────────────
-        ui::top_panel::show_top_panel(ctx, &mut self.ui_state, &self.comms, &mut self.end_game_timestamp);
+        ui::top_panel::show_top_panel(
+            ctx,
+            &mut self.ui_state,
+            &self.comms,
+            &mut self.end_game_timestamp,
+        );
 
         // ── Timer-based polling (not every frame!) ──────────────────────
         if self.timers.should_poll_planet_snapshots() {
@@ -262,7 +266,8 @@ impl eframe::App for GalaxyApp {
             && self.explorer_state.explorer_positions.is_empty()
         {
             if self.ui_state.explorer_limit_popup.is_none() {
-                self.ui_state.explorer_limit_popup = Some( //TODO actually display this popup
+                self.ui_state.explorer_limit_popup = Some(
+                    //TODO actually display this popup
                     "All explorers are dead. The game will now end.".to_owned(),
                 );
             }
@@ -277,7 +282,19 @@ impl eframe::App for GalaxyApp {
                 UiToOrchestratorCommand::EndGame,
                 "Failed to send EndGame command",
             );
+            self.ui_state.explorer_limit_popup = Some("All the explorers have been killed. Shutting down".to_owned());
             self.end_game_requested = true;
+        }
+
+        // ── Close window gracefully after EndGame ──────────────────────────
+        if let Some(shutdown_time) = self.end_game_timestamp {
+            // Wait 2 seconds before closing to let the popup display
+            if shutdown_time.elapsed() >= Duration::from_secs(2) {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            } else {
+                // Keep repainting to show the popup during shutdown
+                ctx.request_repaint_after(Duration::from_millis(100));
+            }
         }
 
         // ── Schedule next repaint ───────────────────────────────────────
