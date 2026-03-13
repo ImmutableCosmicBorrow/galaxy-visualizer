@@ -160,8 +160,8 @@ pub fn show_context_menu(
     let mut stop_ai = false;
     let mut reset_ai = false;
     let mut spawn_nico_explorer = false; //TODO: make it choose expl type with the following window
-    let mut spawn_rob_explorer = false;
-    let mut spawn_jaco_explorer = false;
+    let mut spawn_vojager = false;
+    let mut spawn_nomad = false;
     let mut close_menu = false;
     //TODO: does it need internal state?
 
@@ -175,11 +175,11 @@ pub fn show_context_menu(
                 if ui.button("👤 Spawn Nico Explorer").clicked() {
                     spawn_nico_explorer = true;
                 }
-                if ui.button("👤 Spawn Rob Explorer").clicked() {
-                    spawn_rob_explorer = true;
+                if ui.button("👤 Spawn Vojager").clicked() {
+                    spawn_vojager = true;
                 }
-                if ui.button("👤 Spawn Jaco Explorer").clicked() {
-                    spawn_jaco_explorer = true;
+                if ui.button("👤 Spawn Nomad").clicked() {
+                    spawn_nomad = true;
                 }
                 if ui.button("Send Asteroid").clicked() {
                     manual_asteroid = true;
@@ -203,14 +203,14 @@ pub fn show_context_menu(
         });
 
     // Handling selections outside the closure to avoid borrow issues
-    if spawn_nico_explorer || spawn_rob_explorer || spawn_jaco_explorer {
+    if spawn_nico_explorer || spawn_vojager || spawn_nomad {
         let expl_type;
         if spawn_nico_explorer {
-            expl_type = ExplorerType::Nico;
-        } else if spawn_rob_explorer {
-            expl_type = ExplorerType::Rob;
+            expl_type = ExplorerType::Explorer;
+        } else if spawn_vojager {
+            expl_type = ExplorerType::Vojager;
         } else {
-            expl_type = ExplorerType::Jaco;
+            expl_type = ExplorerType::Nomad;
         }
 
         // Use the authoritative explorer positions map for counting explorers

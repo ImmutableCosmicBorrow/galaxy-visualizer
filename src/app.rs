@@ -22,11 +22,11 @@ pub struct GalaxyApp {
 
 impl GalaxyApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        let game_step = 2000;
+        let game_step = 3000;
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
-            ExplorerType::Nico,
-            Some(ExplorerType::Rob),
+            ExplorerType::Explorer,
+            Some(ExplorerType::Vojager),
             None,
             game_step,
         );
