@@ -1,12 +1,18 @@
 use eframe::egui;
 use orchestrator::ui::UiToOrchestratorCommand;
+use std::time::Instant;
 
 use crate::comms::OrchestratorComms;
 use crate::models::SpawnStage;
 use crate::state::UiState;
 
 /// Render the top control bar (game-mode, pause/resume, create planet, etc.).
-pub fn show_top_panel(ctx: &egui::Context, ui_state: &mut UiState, comms: &OrchestratorComms) {
+pub fn show_top_panel(
+    ctx: &egui::Context,
+    ui_state: &mut UiState,
+    comms: &OrchestratorComms,
+    end_game_timestamp: &mut Option<Instant>,
+) {
     egui::TopBottomPanel::top("top_controls").show(ctx, |ui| {
         ui.horizontal(|ui| {
             // Left side buttons
@@ -18,10 +24,14 @@ pub fn show_top_panel(ctx: &egui::Context, ui_state: &mut UiState, comms: &Orche
                     );
                 }
                 if ui.button("End Game").clicked() {
-                    comms.send_expect(
-                        UiToOrchestratorCommand::EndGame,
-                        "Failed to send EndGame command",
-                    );
+                    if end_game_timestamp.is_none() {
+                        comms.send_expect(
+                            UiToOrchestratorCommand::EndGame,
+                            "Failed to send EndGame command",
+                        );
+                        *end_game_timestamp = Some(Instant::now());
+                        ui_state.explorer_limit_popup = Some("Shutting down gracefully...".to_owned());
+                    }
                 }
                 if ui.button("Pause Game").clicked() {
                     comms.send_expect(

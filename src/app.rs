@@ -4,6 +4,7 @@ use orchestrator::ExplorerType;
 use orchestrator::logging_utils::LogTarget;
 use orchestrator::payload;
 use orchestrator::ui::UiToOrchestratorCommand;
+use std::time::{Duration, Instant};
 
 use crate::comms::OrchestratorComms;
 use crate::state::{AnimationState, ExplorerState, GalaxyState, PollingTimers, UiState};
@@ -18,17 +19,21 @@ pub struct GalaxyApp {
     pub animation_state: AnimationState,
     pub timers: PollingTimers,
     pub comms: OrchestratorComms,
+    pub started_at: Instant,
+    pub explorer_death_check_delay: Duration,
+    pub end_game_requested: bool,
+    pub end_game_timestamp: Option<Instant>,
 }
 
 impl GalaxyApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        let game_step = 3000;
+        let game_step_ms: u64 = 3000;
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
             ExplorerType::Explorer,
             Some(ExplorerType::Vojager),
             None,
-            game_step,
+            game_step_ms,
         );
 
         cmd_sender
@@ -60,8 +65,12 @@ impl GalaxyApp {
             explorer_state: ExplorerState::new(),
             ui_state: UiState::new(),
             animation_state: AnimationState::new(),
-            timers: PollingTimers::new(game_step),
+            timers: PollingTimers::new(game_step_ms),
             comms: OrchestratorComms::new(cmd_sender, update_receiver),
+            started_at: Instant::now(),
+            explorer_death_check_delay: Duration::from_millis(game_step_ms.saturating_mul(2)),
+            end_game_requested: false,
+            end_game_timestamp: None,
         }
     }
 }
@@ -76,14 +85,18 @@ impl eframe::App for GalaxyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // ── Handle window close (X button) ──────────────────────────────
         if ctx.input(|i| i.viewport().close_requested()) {
-            self.comms.send_expect(
-                UiToOrchestratorCommand::EndGame,
-                "Failed to send EndGame command",
-            );
+            if self.end_game_timestamp.is_none() {
+                self.comms.send_expect(
+                    UiToOrchestratorCommand::EndGame,
+                    "Failed to send EndGame command",
+                );
+                self.end_game_timestamp = Some(Instant::now());
+                self.ui_state.explorer_limit_popup = Some("Shutting down gracefully...".to_owned());
+            }
         }
 
         // ── Top control bar ─────────────────────────────────────────────
-        ui::top_panel::show_top_panel(ctx, &mut self.ui_state, &self.comms);
+        ui::top_panel::show_top_panel(ctx, &mut self.ui_state, &self.comms, &mut self.end_game_timestamp);
 
         // ── Timer-based polling (not every frame!) ──────────────────────
         if self.timers.should_poll_planet_snapshots() {
@@ -242,6 +255,30 @@ impl eframe::App for GalaxyApp {
 
             // don't block the UI thread here
         });
+
+        // ── End game only after startup grace period ─────────────────────
+        if !self.end_game_requested
+            && self.started_at.elapsed() >= self.explorer_death_check_delay
+            && self.explorer_state.explorer_positions.is_empty()
+        {
+            if self.ui_state.explorer_limit_popup.is_none() {
+                self.ui_state.explorer_limit_popup = Some( //TODO actually display this popup
+                    "All explorers are dead. The game will now end.".to_owned(),
+                );
+            }
+            orchestrator::logging_utils::log_internal(
+                LogTarget::General,
+                Channel::Info,
+                payload!(
+                    message : "All explorers are dead. Ending game.",
+                ),
+            );
+            self.comms.send_expect(
+                UiToOrchestratorCommand::EndGame,
+                "Failed to send EndGame command",
+            );
+            self.end_game_requested = true;
+        }
 
         // ── Schedule next repaint ───────────────────────────────────────
         if self.animation_state.has_active_animations() {
