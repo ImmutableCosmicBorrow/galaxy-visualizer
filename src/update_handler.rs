@@ -1,7 +1,7 @@
 use common_game::components::resource::{BasicResourceType, ComplexResourceType};
 use common_game::logging::Channel;
 use common_game::utils::ID;
-use orchestrator::logging_utils::LogTarget;
+use orchestrator::logging::LogTarget;
 use orchestrator::payload;
 use orchestrator::ui::{OrchestratorToUiUpdate, UiToOrchestratorCommand};
 use std::time::Instant;
@@ -28,7 +28,7 @@ pub fn handle_orchestrator_updates(
                 handle_dead_planet(id, galaxy_state, explorer_state, ui_state, comms);
             }
             OrchestratorToUiUpdate::ExplorersPosition(positions) => {
-                orchestrator::logging_utils::log_internal(
+                orchestrator::logging::log_internal(
                     LogTarget::ChannelMessages,
                     Channel::Debug,
                     payload!(
@@ -41,7 +41,7 @@ pub fn handle_orchestrator_updates(
                 explorer_state.explorer_positions.clone_from(&*guard);
             }
             OrchestratorToUiUpdate::PlanetSnapshot(id, snapshot) => {
-                orchestrator::logging_utils::log_internal(
+                orchestrator::logging::log_internal(
                     LogTarget::ChannelMessages,
                     Channel::Trace,
                     payload!(
@@ -58,7 +58,7 @@ pub fn handle_orchestrator_updates(
                 galaxy_state.planet_states.insert(id, snapshot);
             }
             OrchestratorToUiUpdate::ExplorerSnapshot(id, bag) => {
-                orchestrator::logging_utils::log_internal(
+                orchestrator::logging::log_internal(
                     LogTarget::ChannelMessages,
                     Channel::Debug,
                     payload!(
@@ -136,7 +136,7 @@ fn handle_supported_combinations(
     combinations: std::collections::HashSet<ComplexResourceType>,
     ui_state: &mut UiState,
 ) {
-    orchestrator::logging_utils::log_internal(
+    orchestrator::logging::log_internal(
         LogTarget::ChannelMessages,
         Channel::Info,
         payload!(
@@ -156,7 +156,7 @@ fn handle_supported_resources(
     resources: std::collections::HashSet<BasicResourceType>,
     ui_state: &mut UiState,
 ) {
-    orchestrator::logging_utils::log_internal(
+    orchestrator::logging::log_internal(
         LogTarget::ChannelMessages,
         Channel::Info,
         payload!(
@@ -179,7 +179,7 @@ fn handle_auto_sunray(
     animation_state: &mut AnimationState,
     comms: &OrchestratorComms,
 ) {
-    orchestrator::logging_utils::log_internal(
+    orchestrator::logging::log_internal(
         LogTarget::ChannelMessages,
         Channel::Debug,
         payload!(
@@ -223,7 +223,7 @@ fn handle_auto_asteroid(
     comms.send(UiToOrchestratorCommand::GetGalaxy);
     // Request immediate snapshot to catch planet death or damage
     comms.send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id));
-    orchestrator::logging_utils::log_internal(
+    orchestrator::logging::log_internal(
         LogTarget::ChannelMessages,
         Channel::Debug,
         payload!(

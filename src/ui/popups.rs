@@ -2,7 +2,7 @@ use common_game::components::resource::{BasicResourceType, ComplexResourceType};
 use common_game::logging::Channel;
 use common_game::utils::ID;
 use eframe::egui;
-use orchestrator::logging_utils::LogTarget;
+use orchestrator::logging::LogTarget;
 use orchestrator::payload;
 use orchestrator::ui::UiToOrchestratorCommand;
 
@@ -55,7 +55,7 @@ pub fn show_move_selector(
                         for nid in &neighbors {
                             if ui.button(format!("Planet {nid}")).clicked() {
                                 // log and send move command: Explorer ID, from, to
-                                orchestrator::logging_utils::log_internal(
+                                orchestrator::logging::log_internal(
                                     LogTarget::ChannelMessages,
                                     Channel::Info,
                                     payload!(
@@ -145,7 +145,7 @@ pub fn show_generate_resource_popup(
                             }
                         }
                         if let Some(res) = chosen_resource {
-                            orchestrator::logging_utils::log_internal(
+                            orchestrator::logging::log_internal(
                                 LogTarget::General,
                                 Channel::Info,
                                 payload!(
@@ -208,7 +208,7 @@ pub fn show_craft_resource_popup(
                             }
                         }
                         if let Some(res) = chosen_resource {
-                            orchestrator::logging_utils::log_internal(
+                            orchestrator::logging::log_internal(
                                 LogTarget::General,
                                 Channel::Info,
                                 payload!(

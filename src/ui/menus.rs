@@ -2,7 +2,7 @@ use common_game::logging::Channel;
 use common_game::utils::ID;
 use eframe::egui;
 use orchestrator::ExplorerType;
-use orchestrator::logging_utils::LogTarget;
+use orchestrator::logging::LogTarget;
 use orchestrator::payload;
 use orchestrator::ui::UiToOrchestratorCommand;
 use std::time::Instant;
@@ -219,7 +219,7 @@ pub fn show_context_menu(
             let msg = format!(
                 "❗ Explorer limit reached ({explorer_count} explorers), cannot spawn more explorers.",
             );
-            orchestrator::logging_utils::log_internal(
+            orchestrator::logging::log_internal(
                 LogTarget::General,
                 Channel::Warning,
                 payload!(
@@ -252,7 +252,7 @@ pub fn show_context_menu(
     }
 
     if manual_sunray {
-        orchestrator::logging_utils::log_internal(
+        orchestrator::logging::log_internal(
             LogTarget::ChannelMessages,
             Channel::Info,
             payload!(
@@ -380,7 +380,7 @@ pub fn show_explorer_menu(
         ui_state.pending_generate_explorer = Some(explorer_id);
         // clear previous options
         ui_state.resource_options = None;
-        orchestrator::logging_utils::log_internal(
+        orchestrator::logging::log_internal(
             LogTarget::ChannelMessages,
             Channel::Info,
             payload!(
@@ -397,7 +397,7 @@ pub fn show_explorer_menu(
         // ask orchestrator for supported combinations for this explorer, then show selection
         ui_state.pending_craft_explorer = Some(explorer_id);
         ui_state.combination_options = None;
-        orchestrator::logging_utils::log_internal(
+        orchestrator::logging::log_internal(
             LogTarget::ChannelMessages,
             Channel::Info,
             payload!(

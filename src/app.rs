@@ -1,7 +1,7 @@
 use common_game::logging::Channel;
 use eframe::egui;
 use orchestrator::ExplorerType;
-use orchestrator::logging_utils::LogTarget;
+use orchestrator::logging::LogTarget;
 use orchestrator::payload;
 use orchestrator::ui::UiToOrchestratorCommand;
 use std::time::{Duration, Instant};
@@ -23,6 +23,7 @@ pub struct GalaxyApp {
     pub explorer_death_check_delay: Duration,
     pub end_game_requested: bool,
     pub end_game_timestamp: Option<Instant>,
+    pub stopped: bool,
 }
 
 impl GalaxyApp {
@@ -31,7 +32,7 @@ impl GalaxyApp {
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             "galaxy/test_galaxy.txt",
             ExplorerType::Explorer,
-            Some(ExplorerType::Vojager),
+            None,
             None,
             game_step_ms,
         );
@@ -46,7 +47,7 @@ impl GalaxyApp {
 
         std::thread::spawn(move || {
             orch.run();
-            orchestrator::logging_utils::log_internal(
+            orchestrator::logging::log_internal(
                 LogTarget::General,
                 Channel::Info,
                 payload!(
@@ -71,6 +72,7 @@ impl GalaxyApp {
             explorer_death_check_delay: Duration::from_millis(game_step_ms.saturating_mul(2)),
             end_game_requested: false,
             end_game_timestamp: None,
+            stopped: false,
         }
     }
 }
@@ -91,7 +93,8 @@ impl eframe::App for GalaxyApp {
             );
             self.end_game_requested = true;
             self.end_game_timestamp = Some(Instant::now());
-            self.ui_state.explorer_limit_popup = Some("All the explorers have been killed. Shutting down".to_owned());
+            self.ui_state.explorer_limit_popup =
+                Some("All the explorers have been killed. Shutting down".to_owned());
         }
 
         // ── Top control bar ─────────────────────────────────────────────
@@ -100,10 +103,11 @@ impl eframe::App for GalaxyApp {
             &mut self.ui_state,
             &self.comms,
             &mut self.end_game_timestamp,
+            &mut self.stopped,
         );
 
         // ── Timer-based polling (not every frame!) ──────────────────────
-        if self.timers.should_poll_planet_snapshots() {
+        if self.timers.should_poll_planet_snapshots() && !self.stopped {
             for planet in &self.galaxy_state.planets {
                 if planet.active {
                     self.comms
@@ -111,13 +115,13 @@ impl eframe::App for GalaxyApp {
                 }
             }
         }
-        if self.timers.should_poll_explorer_snapshots() {
+        if self.timers.should_poll_explorer_snapshots() && !self.stopped {
             for explorer_id in self.explorer_state.explorer_positions.keys() {
                 self.comms
                     .send(UiToOrchestratorCommand::GetExplorerSnapshot(*explorer_id));
             }
         }
-        if self.timers.should_poll_explorer_positions() {
+        if self.timers.should_poll_explorer_positions() && !self.stopped {
             self.comms
                 .send(UiToOrchestratorCommand::GetExplorersPosition);
         }
@@ -257,10 +261,9 @@ impl eframe::App for GalaxyApp {
             // 16. Draw instructions for the user
             ui::canvas::draw_help_text(&painter, canvas_rect);
 
-            // don't block the UI thread here
         });
 
-        // ── End game only after startup grace period ─────────────────────
+        // End game only after startup grace period
         if !self.end_game_requested
             && self.started_at.elapsed() >= self.explorer_death_check_delay
             && self.explorer_state.explorer_positions.is_empty()
@@ -271,7 +274,7 @@ impl eframe::App for GalaxyApp {
                     "All explorers are dead. The game will now end.".to_owned(),
                 );
             }
-            orchestrator::logging_utils::log_internal(
+            orchestrator::logging::log_internal(
                 LogTarget::General,
                 Channel::Info,
                 payload!(
@@ -282,11 +285,12 @@ impl eframe::App for GalaxyApp {
                 UiToOrchestratorCommand::EndGame,
                 "Failed to send EndGame command",
             );
-            self.ui_state.explorer_limit_popup = Some("All the explorers have been killed. Shutting down".to_owned());
+            self.ui_state.explorer_limit_popup =
+                Some("All the explorers have been killed. Shutting down".to_owned());
             self.end_game_requested = true;
         }
 
-        // ── Close window gracefully after EndGame ──────────────────────────
+        // Close window gracefully after EndGame
         if let Some(shutdown_time) = self.end_game_timestamp {
             // Wait 2 seconds before closing to let the popup display
             if shutdown_time.elapsed() >= Duration::from_secs(2) {
@@ -297,17 +301,14 @@ impl eframe::App for GalaxyApp {
             }
         }
 
-        // ── Schedule next repaint ───────────────────────────────────────
+        // Schedule next animation repaint
         if self.animation_state.has_active_animations() {
-            // Fast repaints for visual effects (asteroid / sunray animations)
-            ctx.request_repaint_after(std::time::Duration::from_millis(16));
+            ctx.request_repaint_after(std::time::Duration::from_millis(33));
         } else {
             // Low-frequency repaint so polling timers keep firing and
             // orchestrator messages get drained even when the user is not
-            // interacting.  This replaces the old approach that coupled
-            // polling to the animation loop.
+            // interacting
             let next_poll = self.timers.time_until_next_poll();
-            // Add a small margin so we don't wake up just before the timer.
             ctx.request_repaint_after(next_poll + std::time::Duration::from_millis(50));
         }
     }
