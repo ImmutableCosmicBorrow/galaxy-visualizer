@@ -260,7 +260,6 @@ impl eframe::App for GalaxyApp {
 
             // 16. Draw instructions for the user
             ui::canvas::draw_help_text(&painter, canvas_rect);
-
         });
 
         // End game only after startup grace period

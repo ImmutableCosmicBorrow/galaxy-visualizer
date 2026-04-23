@@ -16,3 +16,6 @@ all: fmt lint test
 
 doc:
 	cargo doc
+
+run: 
+	cargo build && cargo run	

@@ -13,7 +13,7 @@ pub fn show_top_panel(
     comms: &OrchestratorComms,
     end_game_timestamp: &mut Option<Instant>,
     paused: &mut bool,
-){
+) {
     egui::TopBottomPanel::top("top_controls").show(ctx, |ui| {
         ui.horizontal(|ui| {
             // Left side buttons
@@ -32,23 +32,19 @@ pub fn show_top_panel(
                     *end_game_timestamp = Some(Instant::now());
                     ui_state.explorer_limit_popup = Some("Shutting down".to_owned());
                 }
-                if ui.button("Pause Game").clicked() {
-                    if !*paused{
-                        *paused = true;
-                        comms.send_expect(
-                            UiToOrchestratorCommand::PauseGame,
-                            "Failed to send PauseGame command",
-                        );
-                    }
+                if ui.button("Pause Game").clicked() && !*paused {
+                    *paused = true;
+                    comms.send_expect(
+                        UiToOrchestratorCommand::PauseGame,
+                        "Failed to send PauseGame command",
+                    );
                 }
-                if ui.button("Resume Game").clicked() {
-                    if *paused{
-                        *paused = false;
-                        comms.send_expect(
-                            UiToOrchestratorCommand::ResumeGame,
-                            "Failed to send ResumeGame command",
-                        );
-                    }
+                if ui.button("Resume Game").clicked() && *paused {
+                    *paused = false;
+                    comms.send_expect(
+                        UiToOrchestratorCommand::ResumeGame,
+                        "Failed to send ResumeGame command",
+                    );
                 }
             });
 

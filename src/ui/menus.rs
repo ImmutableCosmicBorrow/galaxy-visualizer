@@ -2,6 +2,7 @@ use common_game::logging::Channel;
 use common_game::utils::ID;
 use eframe::egui;
 use orchestrator::ExplorerType;
+use orchestrator::id::PlanetKind;
 use orchestrator::logging::LogTarget;
 use orchestrator::payload;
 use orchestrator::ui::UiToOrchestratorCommand;
@@ -30,35 +31,35 @@ pub fn handle_spawn_menus(
         SpawnStage::SelectingType => {
             show_planet_type_menu(ctx, pos, ui_state);
         }
-        SpawnStage::SelectingNeighbors(planet_id) => {
-            show_neighbor_selection_menu(ctx, pos, planet_id, planets, ui_state, comms);
+        SpawnStage::SelectingNeighbors(planet_kind) => {
+            show_neighbor_selection_menu(ctx, pos, planet_kind, planets, ui_state, comms);
         }
         SpawnStage::None => {}
     }
 }
 
 fn show_planet_type_menu(ctx: &egui::Context, pos: egui::Pos2, ui_state: &mut UiState) {
-    let mut chosen_id: Option<ID> = None;
+    let mut chosen_type: Option<PlanetKind> = None;
 
     egui::Area::new(egui::Id::new("planet_type_menu"))
         .fixed_pos(pos)
         .show(ctx, |ui| {
             ui.vertical(|ui| {
                 ui.label("Select Planet Type:");
-                if ui.button("Rusty Crabs").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_rusty_crab_id());
+                if ui.button("Rusty Crab").clicked() {
+                    chosen_type = Some(PlanetKind::RustyCrab);
                 } else if ui.button("Rustrelli").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_rustrelli_id());
+                    chosen_type = Some(PlanetKind::Rustrelli);
                 } else if ui.button("Orbitron").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_orbitron_id());
+                    chosen_type = Some(PlanetKind::Orbitron);
                 } else if ui.button("Houston we have a borrow").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_houston_id());
+                    chosen_type = Some(PlanetKind::Houston);
                 } else if ui.button("Trip").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_trip_id());
+                    chosen_type = Some(PlanetKind::Trip);
                 } else if ui.button("Luna4").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_luna4_id());
+                    chosen_type = Some(PlanetKind::Luna4);
                 } else if ui.button("Enterprise").clicked() {
-                    chosen_id = Some(orchestrator::get_id_manager().get_next_enterprise_id());
+                    chosen_type = Some(PlanetKind::Enterprise);
                 }
                 if ui.button("Cancel").clicked() {
                     ui_state.pending_spawn_pos = None;
@@ -67,8 +68,8 @@ fn show_planet_type_menu(ctx: &egui::Context, pos: egui::Pos2, ui_state: &mut Ui
             });
         });
 
-    if let Some(new_id) = chosen_id {
-        ui_state.spawn_stage = SpawnStage::SelectingNeighbors(new_id);
+    if let Some(new_type) = chosen_type {
+        ui_state.spawn_stage = SpawnStage::SelectingNeighbors(new_type);
         ui_state.selected_neighbors.clear();
     }
 }
@@ -76,7 +77,7 @@ fn show_planet_type_menu(ctx: &egui::Context, pos: egui::Pos2, ui_state: &mut Ui
 fn show_neighbor_selection_menu(
     ctx: &egui::Context,
     pos: egui::Pos2,
-    planet_id: ID,
+    planet_kind: PlanetKind,
     planets: &[Planet],
     ui_state: &mut UiState,
     comms: &OrchestratorComms,
@@ -118,7 +119,7 @@ fn show_neighbor_selection_menu(
         // This ensures all planets are arranged in the circle layout
 
         comms.send_expect(
-            UiToOrchestratorCommand::AddPlanet(planet_id, neighbors),
+            UiToOrchestratorCommand::AddPlanet(planet_kind, neighbors),
             "Failed to send AddPlanet command",
         );
 

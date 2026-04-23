@@ -1,6 +1,6 @@
 use common_game::utils::ID;
 use eframe::egui;
-use orchestrator::ExplorerType;
+use orchestrator::{ExplorerType, id::PlanetKind};
 
 #[derive(Clone)]
 pub struct Planet {
@@ -21,5 +21,5 @@ pub struct Explorer {
 pub enum SpawnStage {
     None,
     SelectingType,
-    SelectingNeighbors(ID), // Store the planet ID chosen
+    SelectingNeighbors(PlanetKind), // Store the planet ID chosen
 }
