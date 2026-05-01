@@ -114,6 +114,26 @@ pub fn show_explorer_limit_popup(ctx: &egui::Context, ui_state: &mut UiState) {
 }
 
 // ---------------------------------------------------------------------------
+// Game-over popup
+// ---------------------------------------------------------------------------
+
+pub fn show_game_over_popup(ctx: &egui::Context, ui_state: &mut UiState) {
+    if let Some(msg) = ui_state.game_over_popup.clone() {
+        egui::Window::new("Game Over")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .show(ctx, |ui| {
+                ui.label(msg);
+                if ui.button("OK").clicked() {
+                    ui_state.game_over_popup = None;
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            });
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Generate-resource popup
 // ---------------------------------------------------------------------------
 

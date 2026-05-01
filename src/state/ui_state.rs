@@ -15,6 +15,7 @@ pub struct UiState {
     pub pending_move_explorer: Option<ID>,
     pub pending_move_pos: Option<egui::Pos2>,
     pub explorer_limit_popup: Option<String>,
+    pub game_over_popup: Option<String>,
     // Resource / crafting UI state
     pub pending_generate_explorer: Option<ID>,
     pub pending_craft_explorer: Option<ID>,
@@ -34,6 +35,7 @@ impl UiState {
             pending_move_explorer: None,
             pending_move_pos: None,
             explorer_limit_popup: None,
+            game_over_popup: None,
             pending_generate_explorer: None,
             pending_craft_explorer: None,
             resource_options: None,
