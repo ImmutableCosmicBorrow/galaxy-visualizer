@@ -16,8 +16,34 @@ pub fn draw_background(painter: &egui::Painter, canvas_rect: egui::Rect) {
     painter.rect_filled(
         canvas_rect,
         0.0, // Corner rounding
-        egui::Color32::from_rgb(10, 10, 25),
+        egui::Color32::from_rgb(8, 10, 20),
     );
+
+    // Subtle nebula glow
+    let glow_center = canvas_rect.center();
+    let glow_radius = canvas_rect.width().max(canvas_rect.height()) * 0.55;
+    painter.circle_filled(
+        glow_center,
+        glow_radius,
+        egui::Color32::from_rgba_unmultiplied(40, 60, 110, 30),
+    );
+
+    // Starfield (deterministic, no RNG dependency)
+    let mut seed = 0x4A2D_9E1Bu32;
+    for _ in 0..120 {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let x = canvas_rect.left() + (seed as f32 / u32::MAX as f32) * canvas_rect.width();
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let y = canvas_rect.top() + (seed as f32 / u32::MAX as f32) * canvas_rect.height();
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let alpha = 40 + (seed % 140) as u8;
+        let radius = 0.5 + (seed % 3) as f32 * 0.4;
+        painter.circle_filled(
+            egui::pos2(x, y),
+            radius,
+            egui::Color32::from_rgba_unmultiplied(200, 220, 255, alpha),
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -33,7 +59,10 @@ pub fn draw_edges(
         if let (Some(pa), Some(pb)) = (cached_pos_by_id.get(a), cached_pos_by_id.get(b)) {
             painter.line_segment(
                 [*pa, *pb],
-                egui::Stroke::new(1.0, egui::Color32::from_white_alpha(30)),
+                egui::Stroke::new(
+                    1.2,
+                    egui::Color32::from_rgba_unmultiplied(120, 150, 210, 70),
+                ),
             );
         }
     }
@@ -98,8 +127,8 @@ fn draw_single_planet(
     if ui_state.selected_planet == Some(planet.id) {
         painter.circle_filled(
             planet.pos,
-            radius + 5.0,
-            egui::Color32::from_rgba_unmultiplied(200, 150, 255, 100), // purple glow
+            radius + 7.0,
+            egui::Color32::from_rgba_unmultiplied(140, 180, 255, 120), // neon glow
         );
     }
 
@@ -114,7 +143,18 @@ fn draw_single_planet(
     */
 
     if planet.active {
-        painter.circle_filled(planet.pos, radius, egui::Color32::from_rgb(100, 200, 255));
+        let base = planet_base_color(planet.id);
+        painter.circle_filled(
+            planet.pos,
+            radius + 4.0,
+            egui::Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), 40),
+        );
+        painter.circle_filled(planet.pos, radius, base);
+        painter.circle_filled(
+            planet.pos + egui::vec2(-4.0, -4.0),
+            radius * 0.4,
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 50),
+        );
     }
 
     // draw explorers on this planet as small colored dots
@@ -134,7 +174,7 @@ fn draw_single_planet(
         egui::Align2::CENTER_TOP,
         &planet.name,
         egui::FontId::proportional(14.0),
-        egui::Color32::WHITE,
+        egui::Color32::from_rgb(210, 230, 255),
     );
 
     // Draw planet state if available
@@ -182,8 +222,18 @@ fn draw_explorers_on_planet(
             }
         }
 
-        // Draw explorer as a larger bright yellow dot
-        painter.circle_filled(explorer_pos, explorer_radius, egui::Color32::YELLOW);
+        let explorer_color = explorer_base_color(*explorer_id);
+        painter.circle_filled(
+            explorer_pos,
+            explorer_radius + 3.0,
+            egui::Color32::from_rgba_unmultiplied(
+                explorer_color.r(),
+                explorer_color.g(),
+                explorer_color.b(),
+                40,
+            ),
+        );
+        painter.circle_filled(explorer_pos, explorer_radius, explorer_color);
 
         // Draw explorer label with name, ID, and bag content
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
@@ -197,9 +247,33 @@ fn draw_explorers_on_planet(
             egui::Align2::LEFT_TOP,
             label_text,
             egui::FontId::proportional(11.0),
-            egui::Color32::WHITE,
+            egui::Color32::from_rgb(210, 230, 255),
         );
     }
+}
+
+fn planet_base_color(planet_id: ID) -> egui::Color32 {
+    let palette = [
+        egui::Color32::from_rgb(88, 162, 255),
+        egui::Color32::from_rgb(115, 210, 255),
+        egui::Color32::from_rgb(120, 130, 255),
+        egui::Color32::from_rgb(160, 120, 255),
+        egui::Color32::from_rgb(90, 200, 200),
+        egui::Color32::from_rgb(130, 240, 200),
+    ];
+    let idx = (planet_id as usize) % palette.len();
+    palette[idx]
+}
+
+fn explorer_base_color(explorer_id: ID) -> egui::Color32 {
+    let palette = [
+        egui::Color32::from_rgb(255, 196, 72),
+        egui::Color32::from_rgb(255, 138, 108),
+        egui::Color32::from_rgb(120, 245, 255),
+        egui::Color32::from_rgb(180, 255, 140),
+    ];
+    let idx = (explorer_id as usize) % palette.len();
+    palette[idx]
 }
 
 // ---------------------------------------------------------------------------

@@ -170,34 +170,80 @@ pub fn show_context_menu(
         .fixed_pos(pos)
         .show(ctx, |ui| {
             ui.vertical(|ui| {
-                ui.label(format!("Planet {planet_id}"));
+                ui.spacing_mut().item_spacing = egui::vec2(6.0, 4.0);
+                ui.spacing_mut().button_padding = egui::vec2(6.0, 4.0);
+
+                ui.label(egui::RichText::new(format!("Planet {planet_id}")).size(13.0));
                 ui.separator();
 
-                if ui.button("👤 Spawn Nico Explorer").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("👤 Spawn Nico Explorer").size(13.0),
+                    ))
+                    .clicked()
+                {
                     spawn_nico_explorer = true;
                 }
-                if ui.button("👤 Spawn Vojager").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("👤 Spawn Vojager").size(13.0),
+                    ))
+                    .clicked()
+                {
                     spawn_vojager = true;
                 }
-                if ui.button("👤 Spawn Nomad").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("👤 Spawn Nomad").size(13.0),
+                    ))
+                    .clicked()
+                {
                     spawn_nomad = true;
                 }
-                if ui.button("Send Asteroid").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Send Asteroid").size(13.0),
+                    ))
+                    .clicked()
+                {
                     manual_asteroid = true;
                 }
-                if ui.button("Send Sunray").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Send Sunray").size(13.0),
+                    ))
+                    .clicked()
+                {
                     manual_sunray = true;
                 }
-                if ui.button("Start Planet AI").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Start Planet AI").size(13.0),
+                    ))
+                    .clicked()
+                {
                     start_ai = true;
                 }
-                if ui.button("Stop Planet AI").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Stop Planet AI").size(13.0),
+                    ))
+                    .clicked()
+                {
                     stop_ai = true;
                 }
-                if ui.button("Reset Planet AI").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Reset Planet AI").size(13.0),
+                    ))
+                    .clicked()
+                {
                     reset_ai = true;
                 }
-                if ui.button("✗ Close").clicked() {
+                if ui
+                    .add(egui::Button::new(egui::RichText::new("✗ Close").size(13.0)))
+                    .clicked()
+                {
                     close_menu = true;
                 }
             });
@@ -302,6 +348,7 @@ pub fn show_context_menu(
 // Explorer context menu
 // ---------------------------------------------------------------------------
 
+#[allow(clippy::too_many_lines)]
 pub fn show_explorer_menu(
     ctx: &egui::Context,
     pos: egui::Pos2,
@@ -321,30 +368,66 @@ pub fn show_explorer_menu(
         .fixed_pos(pos)
         .show(ctx, |ui| {
             ui.vertical(|ui| {
-                ui.label(format!("Explorer {explorer_id}"));
+                ui.spacing_mut().item_spacing = egui::vec2(6.0, 4.0);
+                ui.spacing_mut().button_padding = egui::vec2(6.0, 4.0);
+
+                ui.label(egui::RichText::new(format!("Explorer {explorer_id}")).size(13.0));
                 ui.separator();
 
-                if ui.button("Move To Planet").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Move To Planet").size(13.0),
+                    ))
+                    .clicked()
+                {
                     // open neighbor-only selector after closing this menu
                     move_to_planet = true;
                 }
-                if ui.button("Generate Resource").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Generate Resource").size(13.0),
+                    ))
+                    .clicked()
+                {
                     generate_resource = true;
                 }
-                if ui.button("Craft Resource").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Craft Resource").size(13.0),
+                    ))
+                    .clicked()
+                {
                     craft_resource = true;
                 }
-                if ui.button("Start Explorer AI").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Start Explorer AI").size(13.0),
+                    ))
+                    .clicked()
+                {
                     start_expl_ai = true;
                 }
-                if ui.button("Stop Explorer AI").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Stop Explorer AI").size(13.0),
+                    ))
+                    .clicked()
+                {
                     stop_expl_ai = true;
                 }
-                if ui.button("Reset Explorer AI").clicked() {
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Reset Explorer AI").size(13.0),
+                    ))
+                    .clicked()
+                {
                     reset_expl_ai = true;
                 }
 
-                if ui.button("✗ Close").clicked() {
+                if ui
+                    .add(egui::Button::new(egui::RichText::new("✗ Close").size(13.0)))
+                    .clicked()
+                {
                     close = true;
                 }
             });

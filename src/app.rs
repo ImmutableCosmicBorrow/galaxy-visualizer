@@ -38,6 +38,7 @@ struct GameRuntime {
 pub struct GalaxyApp {
     startup_state: StartupState,
     runtime: Option<GameRuntime>,
+    theme_applied: bool,
 }
 
 impl GalaxyApp {
@@ -48,7 +49,53 @@ impl GalaxyApp {
         Self {
             startup_state,
             runtime: None,
+            theme_applied: false,
         }
+    }
+
+    fn apply_theme(ctx: &egui::Context) {
+        let mut style = (*ctx.style()).clone();
+        style.spacing.window_margin = egui::Margin::same(12);
+        style.spacing.item_spacing = egui::vec2(10.0, 8.0);
+        style.spacing.button_padding = egui::vec2(10.0, 6.0);
+
+        style
+            .text_styles
+            .insert(egui::TextStyle::Heading, egui::FontId::proportional(22.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Body, egui::FontId::proportional(15.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Button, egui::FontId::proportional(15.0));
+        style
+            .text_styles
+            .insert(egui::TextStyle::Small, egui::FontId::proportional(12.0));
+
+        let mut visuals = egui::Visuals::dark();
+        visuals.extreme_bg_color = egui::Color32::from_rgb(8, 10, 20);
+        visuals.panel_fill = egui::Color32::from_rgb(14, 18, 32);
+        visuals.faint_bg_color = egui::Color32::from_rgb(22, 28, 46);
+        visuals.window_fill = egui::Color32::from_rgb(16, 20, 36);
+        visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(46, 60, 96));
+
+        visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(16, 20, 36);
+        visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(24, 30, 50);
+        visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(34, 48, 78);
+        visuals.widgets.active.bg_fill = egui::Color32::from_rgb(44, 70, 120);
+        visuals.widgets.inactive.bg_stroke =
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(52, 70, 110));
+        visuals.widgets.hovered.bg_stroke =
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(80, 110, 180));
+        visuals.widgets.active.bg_stroke =
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(120, 170, 255));
+
+        visuals.selection.bg_fill = egui::Color32::from_rgb(82, 140, 255);
+        visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(140, 200, 255));
+        visuals.hyperlink_color = egui::Color32::from_rgb(120, 200, 255);
+
+        style.visuals = visuals;
+        ctx.set_style(style);
     }
 
     fn try_start_game(&mut self) {
@@ -126,13 +173,18 @@ impl GalaxyApp {
 }
 
 // ---------------------------------------------------------------------------
-// eframe::App – the main loop, now just thin orchestration
+// eframe::App - the main loop
 // ---------------------------------------------------------------------------
 
 impl eframe::App for GalaxyApp {
     #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if !self.theme_applied {
+            Self::apply_theme(ctx);
+            self.theme_applied = true;
+        }
+
         if self.runtime.is_none() {
             if ui::startup_menu::show_startup_menu(ctx, &mut self.startup_state).start_requested {
                 self.try_start_game();
@@ -300,18 +352,10 @@ impl eframe::App for GalaxyApp {
             ui::popups::show_game_over_popup(ctx, &mut runtime.ui_state);
 
             // 13. Show generate-resource popup
-            ui::popups::show_generate_resource_popup(
-                ctx,
-                &mut runtime.ui_state,
-                &runtime.comms,
-            );
+            ui::popups::show_generate_resource_popup(ctx, &mut runtime.ui_state, &runtime.comms);
 
             // 14. Show craft-resource popup
-            ui::popups::show_craft_resource_popup(
-                ctx,
-                &mut runtime.ui_state,
-                &runtime.comms,
-            );
+            ui::popups::show_craft_resource_popup(ctx, &mut runtime.ui_state, &runtime.comms);
 
             // 15. Draw asteroid animation
             ui::animations::draw_asteroid_animation(
