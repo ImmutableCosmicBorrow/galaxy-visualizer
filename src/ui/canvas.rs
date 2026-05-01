@@ -1,6 +1,8 @@
 use common_game::utils::ID;
 use eframe::egui;
+use image::GenericImageView;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::fmt::Write as _;
 
 use crate::helpers::format_bag_content;
@@ -132,16 +134,6 @@ fn draw_single_planet(
         );
     }
 
-    // TODO: use Kenney asset
-    /*
-    painter.image(
-        my_planet_texture_id,
-        egui::Rect::from_center_size(planet.pos, egui::Vec2::splat(50.0)),
-        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-        planet.color // Tinting!
-    );
-    */
-
     if planet.active {
         let base = planet_base_color(planet.id);
         painter.circle_filled(
@@ -155,6 +147,21 @@ fn draw_single_planet(
             radius * 0.4,
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 50),
         );
+
+        if let Some(texture) = get_planet_texture(ctx, ui_state, planet.id, &planet.name) {
+            let size = egui::Vec2::splat(radius * 2.4);
+            let rect = egui::Rect::from_center_size(planet.pos, size);
+            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+            painter.image(texture.id(), rect, uv, egui::Color32::WHITE);
+        } else if let Some(err) = ui_state.planet_icon_errors.get(&planet_icon_key(planet.id)) {
+            painter.text(
+                planet.pos + egui::Vec2::new(0.0, radius + 26.0),
+                egui::Align2::CENTER_TOP,
+                format!("Icon missing for {}: {err}", planet.name),
+                egui::FontId::proportional(10.0),
+                egui::Color32::from_rgb(255, 120, 120),
+            );
+        }
     }
 
     // draw explorers on this planet as small colored dots
@@ -187,7 +194,7 @@ fn draw_single_planet(
 
 #[allow(clippy::cast_precision_loss)]
 fn draw_explorers_on_planet(
-    _ctx: &egui::Context,
+    ctx: &egui::Context,
     painter: &egui::Painter,
     response: &egui::Response,
     planet: &Planet,
@@ -222,18 +229,23 @@ fn draw_explorers_on_planet(
             }
         }
 
-        let explorer_color = explorer_base_color(*explorer_id);
-        painter.circle_filled(
-            explorer_pos,
-            explorer_radius + 3.0,
-            egui::Color32::from_rgba_unmultiplied(
-                explorer_color.r(),
-                explorer_color.g(),
-                explorer_color.b(),
-                40,
-            ),
-        );
-        painter.circle_filled(explorer_pos, explorer_radius, explorer_color);
+        if let Some(texture) = get_explorer_texture(ctx, ui_state, *explorer_id) {
+            let size = egui::Vec2::splat(explorer_radius * 2.2);
+            let rect = egui::Rect::from_center_size(explorer_pos, size);
+            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+            painter.image(texture.id(), rect, uv, egui::Color32::WHITE);
+        } else if let Some(err) = ui_state
+            .explorer_icon_errors
+            .get(&explorer_icon_key(*explorer_id))
+        {
+            painter.text(
+                explorer_pos + egui::Vec2::new(0.0, explorer_radius + 8.0),
+                egui::Align2::CENTER_TOP,
+                format!("Icon missing: {err}"),
+                egui::FontId::proportional(9.0),
+                egui::Color32::from_rgb(255, 120, 120),
+            );
+        }
 
         // Draw explorer label with name, ID, and bag content
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
@@ -265,15 +277,188 @@ fn planet_base_color(planet_id: ID) -> egui::Color32 {
     palette[idx]
 }
 
-fn explorer_base_color(explorer_id: ID) -> egui::Color32 {
-    let palette = [
-        egui::Color32::from_rgb(255, 196, 72),
-        egui::Color32::from_rgb(255, 138, 108),
-        egui::Color32::from_rgb(120, 245, 255),
-        egui::Color32::from_rgb(180, 255, 140),
-    ];
-    let idx = (explorer_id as usize) % palette.len();
-    palette[idx]
+
+fn get_explorer_texture(
+    ctx: &egui::Context,
+    ui_state: &mut UiState,
+    explorer_id: ID,
+) -> Option<egui::TextureHandle> {
+    let key = explorer_icon_key(explorer_id);
+
+    if let Some(texture) = ui_state.explorer_textures.get(&key) {
+        return Some(texture.clone());
+    }
+
+    if ui_state.explorer_icon_errors.contains_key(&key) {
+        return None;
+    }
+
+    let path = ui_state
+        .explorer_icon_paths
+        .get(&key)
+        .cloned()
+        .or_else(|| fallback_explorer_icon_path(&key));
+
+    let Some(path) = path else {
+        ui_state
+            .explorer_icon_errors
+            .insert(key, "No icon mapping".to_owned());
+        return None;
+    };
+
+    let texture_name = format!("explorer_{key}");
+    match load_texture_from_path(ctx, &path, &texture_name) {
+        Ok(texture) => {
+            ui_state
+                .explorer_textures
+                .insert(key, texture.clone());
+            Some(texture)
+        }
+        Err(err) => {
+            ui_state
+                .explorer_icon_errors
+                .insert(key, format!("{path}: {err}"));
+            None
+        }
+    }
+}
+
+fn explorer_icon_key(explorer_id: ID) -> String {
+    let name = orchestrator::id::IdManager::explorer_name_from_id(explorer_id);
+    explorer_icon_key_from_name(&name)
+}
+
+fn explorer_icon_key_from_name(name: &str) -> String {
+    let lower = name.to_lowercase();
+    if lower.contains("vojager") {
+        "Vojager".to_owned()
+    } else if lower.contains("nomad") {
+        "Nomad".to_owned()
+    } else if lower.contains("nico") || lower.contains("explorer") {
+        "Nico Explorer".to_owned()
+    } else {
+        "Nico Explorer".to_owned()
+    }
+}
+
+fn fallback_explorer_icon_path(explorer_key: &str) -> Option<String> {
+    let normalized: String = explorer_key
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let normalized = normalized.trim_matches('_').to_owned();
+
+    if !normalized.is_empty() {
+        return Some(format!("assets/explorers/{normalized}.png"));
+    }
+
+    None
+}
+
+fn get_planet_texture(
+    ctx: &egui::Context,
+    ui_state: &mut UiState,
+    planet_id: ID,
+    planet_name: &str,
+) -> Option<egui::TextureHandle> {
+    let key = planet_icon_key(planet_id);
+
+    if let Some(texture) = ui_state.planet_textures.get(&key) {
+        return Some(texture.clone());
+    }
+
+    if ui_state.planet_icon_errors.contains_key(&key) {
+        return None;
+    }
+
+    let path = ui_state
+        .planet_icon_paths
+        .get(&key)
+        .cloned()
+        .or_else(|| fallback_icon_path(&key));
+
+    let Some(path) = path else {
+        ui_state.planet_icon_errors.insert(
+            key,
+            format!("No icon mapping for '{planet_name}'"),
+        );
+        return None;
+    };
+
+    match load_texture_from_path(ctx, &path, &key) {
+        Ok(texture) => {
+            ui_state
+                .planet_textures
+                .insert(key, texture.clone());
+            Some(texture)
+        }
+        Err(err) => {
+            ui_state
+                .planet_icon_errors
+                .insert(key, format!("{path}: {err}"));
+            None
+        }
+    }
+}
+
+fn planet_icon_key(planet_id: ID) -> String {
+    let kind = orchestrator::id::IdManager::planet_kind(planet_id);
+    let label = match kind {
+        orchestrator::id::PlanetKind::RustyCrab => "Rusty Crab",
+        orchestrator::id::PlanetKind::Rustrelli => "Rustrelli",
+        orchestrator::id::PlanetKind::Orbitron => "Orbitron",
+        orchestrator::id::PlanetKind::Houston => "Houston",
+        orchestrator::id::PlanetKind::Trip => "Trip",
+        orchestrator::id::PlanetKind::Luna4 => "Luna4",
+        orchestrator::id::PlanetKind::Enterprise => "Enterprise",
+    };
+    label.to_owned()
+}
+
+fn fallback_icon_path(planet_name: &str) -> Option<String> {
+    let normalized: String = planet_name
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let normalized = normalized.trim_matches('_').to_owned();
+
+    if !normalized.is_empty() {
+        return Some(format!("assets/planets/{normalized}.png"));
+    }
+
+    None
+}
+
+fn load_texture_from_path(
+    ctx: &egui::Context,
+    path: &str,
+    name: &str,
+) -> Result<egui::TextureHandle, String> {
+    let resolved = resolve_asset_path(path);
+    let image = image::open(&resolved).map_err(|err| err.to_string())?;
+    let (width, height) = image.dimensions();
+    let rgba = image.to_rgba8();
+    let size = [width as usize, height as usize];
+    let pixels = rgba.into_raw();
+    let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &pixels);
+
+    Ok(ctx.load_texture(
+        format!("planet_icon_{name}"),
+        color_image,
+        egui::TextureOptions::LINEAR,
+    ))
+}
+
+fn resolve_asset_path(path: &str) -> PathBuf {
+    let candidate = Path::new(path);
+    if candidate.is_absolute() {
+        return candidate.to_path_buf();
+    }
+
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    manifest_dir.join(candidate)
 }
 
 // ---------------------------------------------------------------------------

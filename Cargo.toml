@@ -8,12 +8,14 @@ common-game = "3.0.0"
 crossbeam-channel = "0.5.15"
 eframe = "0.33.3"
 egui = "0.33.3"
-orchestrator = { git = "https://github.com/ImmutableCosmicBorrow/orchestrator/"}
+orchestrator = { path = "../orchestrator" }
+image = "0.25.2"
+#orchestrator = { git = "https://github.com/ImmutableCosmicBorrow/orchestrator/"}
 common-explorer = { git = "https://github.com/ImmutableCosmicBorrow/common-explorer/"}
 log = "0.4"
 env_logger = "0.11"
 
-#[patch."https://github.com/ImmutableCosmicBorrow/orchestrator/"]
-#orchestrator = { path = "../orchestrator" }
+[patch."https://github.com/ImmutableCosmicBorrow/orchestrator/"]
+orchestrator = { path = "../orchestrator" }
 
 

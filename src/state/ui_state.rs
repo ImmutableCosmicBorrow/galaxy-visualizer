@@ -1,7 +1,7 @@
 use common_game::components::resource::{BasicResourceType, ComplexResourceType};
 use common_game::utils::ID;
 use eframe::egui;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::models::SpawnStage;
 
@@ -21,6 +21,12 @@ pub struct UiState {
     pub pending_craft_explorer: Option<ID>,
     pub resource_options: Option<Vec<BasicResourceType>>,
     pub combination_options: Option<Vec<ComplexResourceType>>,
+    pub planet_icon_paths: HashMap<String, String>,
+    pub planet_textures: HashMap<String, egui::TextureHandle>,
+    pub planet_icon_errors: HashMap<String, String>,
+    pub explorer_icon_paths: HashMap<String, String>,
+    pub explorer_textures: HashMap<String, egui::TextureHandle>,
+    pub explorer_icon_errors: HashMap<String, String>,
 }
 
 impl UiState {
@@ -40,6 +46,12 @@ impl UiState {
             pending_craft_explorer: None,
             resource_options: None,
             combination_options: None,
+            planet_icon_paths: default_planet_icon_paths(),
+            planet_textures: HashMap::new(),
+            planet_icon_errors: HashMap::new(),
+            explorer_icon_paths: default_explorer_icon_paths(),
+            explorer_textures: HashMap::new(),
+            explorer_icon_errors: HashMap::new(),
         }
     }
 
@@ -59,4 +71,27 @@ impl UiState {
         self.spawn_stage = SpawnStage::None;
         self.selected_neighbors.clear();
     }
+}
+
+fn default_planet_icon_paths() -> HashMap<String, String> {
+    HashMap::from([
+        ("Rusty Crab".to_owned(), "assets/planets/rusty_crab.png".to_owned()),
+        ("Rustrelli".to_owned(), "assets/planets/rustrelli.png".to_owned()),
+        ("Orbitron".to_owned(), "assets/planets/orbitron.png".to_owned()),
+        ("Houston".to_owned(), "assets/planets/houston.png".to_owned()),
+        ("Trip".to_owned(), "assets/planets/trip.png".to_owned()),
+        ("Luna4".to_owned(), "assets/planets/luna4.png".to_owned()),
+        ("Enterprise".to_owned(), "assets/planets/enterprise.png".to_owned()),
+    ])
+}
+
+fn default_explorer_icon_paths() -> HashMap<String, String> {
+    HashMap::from([
+        (
+            "Nico Explorer".to_owned(),
+            "assets/explorers/nico.png".to_owned(),
+        ),
+        ("Vojager".to_owned(), "assets/explorers/vojager.png".to_owned()),
+        ("Nomad".to_owned(), "assets/explorers/nomad.png".to_owned()),
+    ])
 }
