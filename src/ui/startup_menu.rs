@@ -59,7 +59,7 @@ pub fn show_startup_menu(ctx: &egui::Context, state: &mut StartupState) -> Start
                     ui.add_space(6.0);
                     ui.add_sized(
                         [panel_width - 40.0, 0.0],
-                        egui::Slider::new(&mut state.game_step_ms, 2000..=10000)
+                        egui::Slider::new(&mut state.game_step_ms, 500..=10000)
                             .text("Step (ms)")
                             .clamping(egui::SliderClamping::Always),
                     );

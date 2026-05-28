@@ -19,3 +19,6 @@ doc:
 
 run: 
 	cargo build && cargo run	
+
+release:
+	cargo build --release && cargo run

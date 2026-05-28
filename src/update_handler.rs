@@ -35,10 +35,10 @@ pub fn handle_orchestrator_updates(
                         action : "received_explorers_position",
                     ),
                 );
-                let guard = positions
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                explorer_state.explorer_positions.clone_from(&*guard);
+                explorer_state.explorer_positions.clear();
+                for entry in positions.iter() {
+                    explorer_state.explorer_positions.insert(*entry.key(), *entry.value());
+                }
             }
             OrchestratorToUiUpdate::PlanetSnapshot(id, snapshot) => {
                 orchestrator::logging::log_internal(
