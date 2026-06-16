@@ -17,7 +17,7 @@ use crate::state::ExplorerState;
 ///   - Explorer name + ID as a header
 ///   - One row per resource: `"ResourceName: n"`
 ///   - "bag: empty" when no resources are held
-pub fn show_explorer_bags_hud(
+pub fn show_explorer_bags(
     ctx: &egui::Context,
     explorer_state: &ExplorerState,
     canvas_rect: egui::Rect,
@@ -48,7 +48,8 @@ pub fn show_explorer_bags_hud(
         };
 
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(explorer_id);
-        let title = format!("{explorer_name} ({explorer_id})");
+        let display_name = crate::helpers::display_explorer_name(&explorer_name);
+        let title = format!("{display_name} ({explorer_id})");
 
         // Clone bag data needed for rendering (avoids holding borrow inside closure)
         let bag_entries: Vec<(String, u64)> = match explorer_state.explorer_bags.get(&explorer_id) {

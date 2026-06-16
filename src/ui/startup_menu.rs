@@ -143,8 +143,8 @@ fn explorer_combo(
 ) {
     let selected_text = match value {
         Some(ExplorerType::Explorer) => "Nico Explorer",
-        Some(ExplorerType::Vojager) => "Vojager",
-        Some(ExplorerType::Nomad) => "Nomad",
+        Some(ExplorerType::Vojager) => "Rob Vojager",
+        Some(ExplorerType::Nomad) => "Jaco Nomad",
         None => "None",
     };
 
@@ -165,13 +165,13 @@ fn explorer_combo(
                 *value = Some(ExplorerType::Explorer);
             }
             if ui
-                .selectable_label(matches!(value, Some(ExplorerType::Vojager)), "Vojager")
+                .selectable_label(matches!(value, Some(ExplorerType::Vojager)), "Rob Vojager")
                 .clicked()
             {
                 *value = Some(ExplorerType::Vojager);
             }
             if ui
-                .selectable_label(matches!(value, Some(ExplorerType::Nomad)), "Nomad")
+                .selectable_label(matches!(value, Some(ExplorerType::Nomad)), "Jaco Nomad")
                 .clicked()
             {
                 *value = Some(ExplorerType::Nomad);

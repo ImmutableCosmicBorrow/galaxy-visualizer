@@ -16,14 +16,13 @@ pub fn draw_asteroid_animation(
         return;
     };
 
-    // Make asteroid effect immediate: draw full trail and a short flash
-    let display_duration = 0.25_f32; // seconds to keep the flash
+    // Make asteroid effect 
+    let display_duration = 0.25_f32; 
     let elapsed = start_time.elapsed().as_secs_f32();
 
     if let Some(planet) = planets.iter().find(|p| p.id == planet_id) {
         let origin = canvas_rect.center();
 
-        // Full trail instantly
         painter.line_segment(
             [origin, planet.pos],
             egui::Stroke::new(3.0, egui::Color32::from_rgba_unmultiplied(255, 80, 80, 220)),
@@ -32,7 +31,6 @@ pub fn draw_asteroid_animation(
         // Impact dot
         painter.circle_filled(planet.pos, 6.0, egui::Color32::RED);
 
-        // Expanding ring to emphasize impact
         let ring_progress = (elapsed / display_duration).min(1.0);
         let ring_radius = 10.0 + 30.0 * ring_progress;
         #[expect(clippy::cast_possible_truncation, reason = "value is clamped to [0, 255] before cast")]
@@ -70,14 +68,13 @@ pub fn draw_sunray_animation(
         return;
     };
 
-    // Make sunray feel immediate: full beam + quick flash
+    // Make sunray animation
     let display_duration = 0.15_f32;
     let elapsed = start_time.elapsed().as_secs_f32();
 
     if let Some(planet) = planets.iter().find(|p| p.id == planet_id) {
         let origin = canvas_rect.center();
 
-        // Full beam immediately
         painter.line_segment(
             [origin, planet.pos],
             egui::Stroke::new(
@@ -86,10 +83,9 @@ pub fn draw_sunray_animation(
             ),
         );
 
-        // Burst at target
+        // Impact dot
         painter.circle_filled(planet.pos, 6.0, egui::Color32::YELLOW);
 
-        // Subtle expanding glow
         let ring_progress = (elapsed / display_duration).min(1.0);
         let ring_radius = 12.0 + 28.0 * ring_progress;
         #[expect(clippy::cast_possible_truncation, reason = "value is clamped to [0, 255] before cast")]

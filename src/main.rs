@@ -11,7 +11,6 @@ use app::GalaxyApp;
 fn main() -> Result<(), eframe::Error> {
     // Silence noisy UI framework logs (winit/egui/eframe) unless explicitly overridden.
     if std::env::var("RUST_LOG").is_err() {
-        // SAFETY: this runs at process startup, before any thread is spawned.
         unsafe {
             std::env::set_var(
                 "RUST_LOG",

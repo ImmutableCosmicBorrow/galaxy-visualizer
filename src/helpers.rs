@@ -84,3 +84,17 @@ pub fn build_planets_and_edges_from_galaxy(
 
     (planets, edges.into_iter().collect())
 }
+
+pub fn display_explorer_name(name: &str) -> String {
+    let lower = name.to_lowercase();
+    if lower.contains("vojager") {
+        "Rob Vojager".to_string()
+    } else if lower.contains("nomad") {
+        "Jaco Nomad".to_string()
+    } else if lower.contains("nico") || lower.contains("explorer") {
+        "Nico Explorer".to_string()
+    } else {
+        name.to_string()
+    }
+}
+

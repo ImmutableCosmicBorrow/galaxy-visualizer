@@ -111,9 +111,8 @@ fn handle_dead_planet(
     comms.send(UiToOrchestratorCommand::GetGalaxy);
 
     // Clean up any pending UI operations that reference explorers on
-    // the dead planet, but do NOT eagerly remove the explorers from
-    // the position/bag maps – let the normal polling cycle sync that
-    // so the dots don't vanish in the same frame as the planet death.
+    // the dead planet, but do not remove the explorers from
+    // the position/bag maps. Let the normal polling cycle sync
     let dead_explorers: Vec<ID> = explorer_state
         .explorer_positions
         .iter()
@@ -194,8 +193,10 @@ fn handle_auto_sunray(
     animation_state
         .planets_to_refresh
         .push((planet_id, Instant::now()));
+
     // Request immediate snapshot to catch rocket status
     comms.send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id));
+
     // Clamp displayed charged counter to the maximum number of energy cells
     if let Some(state) = galaxy_state.planet_states.get(&planet_id) {
         let max_charged = state.energy_cells.len() as f32;
@@ -217,13 +218,16 @@ fn handle_auto_asteroid(
     comms: &OrchestratorComms,
 ) {
     animation_state.sending_asteroid = Some((planet_id, Instant::now()));
+
     // Schedule refresh after 100ms to let orchestrator process the asteroid
     animation_state
         .planets_to_refresh
         .push((planet_id, Instant::now()));
+
     // Request galaxy update to catch planet death
     comms.send(UiToOrchestratorCommand::GetGalaxy);
-    // Request immediate snapshot to catch planet death or damage
+
+    // Request immediate snapshot to catch planet death/energy decrease
     comms.send(UiToOrchestratorCommand::GetPlanetSnapshot(planet_id));
     orchestrator::logging::log_internal(
         LogTarget::ChannelMessages,

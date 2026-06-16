@@ -18,14 +18,7 @@ impl AnimationState {
             planet_displayed_charged: HashMap::new(),
         }
     }
-
-    /// Returns `true` when there are in-flight visual animations (asteroid /
-    /// sunray effects or pending refresh requests) that need fast repaints.
-    ///
-    /// NOTE: `planet_displayed_charged` (the smooth counter animation) is
-    /// intentionally excluded — it is a subtle cosmetic effect that can
-    /// piggyback on repaints triggered by other sources instead of driving
-    /// a continuous 60 fps loop on its own.
+    
     pub fn has_active_animations(&self) -> bool {
         self.sending_asteroid.is_some()
             || self.sending_sunray.is_some()

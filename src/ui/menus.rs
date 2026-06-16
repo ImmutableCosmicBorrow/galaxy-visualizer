@@ -186,7 +186,7 @@ pub fn show_context_menu(
                 }
                 if ui
                     .add(egui::Button::new(
-                        egui::RichText::new("👤 Spawn Vojager").size(13.0),
+                        egui::RichText::new("👤 Spawn Rob Vojager").size(13.0),
                     ))
                     .clicked()
                 {
@@ -194,7 +194,7 @@ pub fn show_context_menu(
                 }
                 if ui
                     .add(egui::Button::new(
-                        egui::RichText::new("👤 Spawn Nomad").size(13.0),
+                        egui::RichText::new("👤 Spawn Jaco Nomad").size(13.0),
                     ))
                     .clicked()
                 {

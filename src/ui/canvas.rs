@@ -250,7 +250,8 @@ fn draw_explorers_on_planet(
 
         // Draw explorer label with name and ID (resources are shown in the HUD panels)
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
-        let label_text = format!("{explorer_name} ({explorer_id})");
+        let display_name = crate::helpers::display_explorer_name(&explorer_name);
+        let label_text = format!("{display_name} ({explorer_id})");
         painter.text(
             explorer_pos + egui::Vec2::new(explorer_radius + 6.0, -explorer_radius - 6.0),
             egui::Align2::LEFT_TOP,

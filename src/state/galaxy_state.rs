@@ -64,7 +64,7 @@ impl GalaxyState {
         }
     }
 
-    /// Rebuild the id -> screen-position cache when the planet list changes.
+    /// Rebuild the id -> screen position cache when the planet list changes.
     pub fn refresh_pos_cache(&mut self) {
         // Rebuild every frame: planet positions can change when layout center/size changes,
         // even if the number of planets stays the same.

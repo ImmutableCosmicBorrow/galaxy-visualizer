@@ -31,10 +31,10 @@ struct GameRuntime {
     explorer_death_check_delay: Duration,
     end_game_requested: bool,
     end_game_timestamp: Option<Instant>,
-    stopped: bool,
+    ended: bool,
 }
 
-/// Top-level application struct – composed entirely of focused sub-states.
+/// Main application struct
 pub struct GalaxyApp {
     startup_state: StartupState,
     runtime: Option<GameRuntime>,
@@ -167,18 +167,16 @@ impl GalaxyApp {
             ),
             end_game_requested: false,
             end_game_timestamp: None,
-            stopped: false,
+            ended: false,
         });
     }
 }
 
-// ---------------------------------------------------------------------------
-// eframe::App - the main loop
-// ---------------------------------------------------------------------------
-
+/// eframe::App, trait implementation. The main loop
 impl eframe::App for GalaxyApp {
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Apply theme once at startup
         if !self.theme_applied {
             Self::apply_theme(ctx);
             self.theme_applied = true;
@@ -193,7 +191,7 @@ impl eframe::App for GalaxyApp {
 
         let runtime = self.runtime.as_mut().expect("Game runtime missing");
 
-        // ── Handle window close (X button) ──────────────────────────────
+        // Handle window close with X button
         if ctx.input(|i| i.viewport().close_requested()) && runtime.end_game_timestamp.is_none() {
             runtime.comms.send_expect(
                 UiToOrchestratorCommand::EndGame,
@@ -204,17 +202,17 @@ impl eframe::App for GalaxyApp {
             runtime.ui_state.game_over_popup = Some("Shutting down".to_owned());
         }
 
-        // ── Top control bar ─────────────────────────────────────────────
+        // Top control bar 
         ui::top_panel::show_top_panel(
             ctx,
             &mut runtime.ui_state,
             &runtime.comms,
             &mut runtime.end_game_timestamp,
-            &mut runtime.stopped,
+            &mut runtime.ended,
         );
 
-        // ── Timer-based polling (not every frame!) ──────────────────────
-        if runtime.timers.should_poll_planet_snapshots() && !runtime.stopped {
+        // Timer based polling, not every frame to avoid too much overhead
+        if runtime.timers.should_poll_planet_snapshots() && !runtime.ended {
             for planet in &runtime.galaxy_state.planets {
                 if planet.active {
                     runtime
@@ -223,20 +221,20 @@ impl eframe::App for GalaxyApp {
                 }
             }
         }
-        if runtime.timers.should_poll_explorer_snapshots() && !runtime.stopped {
+        if runtime.timers.should_poll_explorer_snapshots() && !runtime.ended {
             for explorer_id in runtime.explorer_state.explorer_positions.keys() {
                 runtime
                     .comms
                     .send(UiToOrchestratorCommand::GetExplorerSnapshot(*explorer_id));
             }
         }
-        if runtime.timers.should_poll_explorer_positions() && !runtime.stopped {
+        if runtime.timers.should_poll_explorer_positions() && !runtime.ended {
             runtime
                 .comms
                 .send(UiToOrchestratorCommand::GetExplorersPosition);
         }
 
-        // ── Drain expired refresh requests ─────────────────────────
+        // Drain expired planet refresh requests 
         {
             let refresh_delay = std::time::Duration::from_millis(100);
             let mut i = 0;
@@ -253,9 +251,9 @@ impl eframe::App for GalaxyApp {
             }
         }
 
-        // ── Central panel (canvas) ──────────────────────────────────────
+        // Main canvas panel
         egui::CentralPanel::default().show(ctx, |ui| {
-            // 1. Process all pending orchestrator messages
+            // Process all pending orchestrator messages
             update_handler::handle_orchestrator_updates(
                 &runtime.comms,
                 &mut runtime.galaxy_state,
@@ -264,20 +262,20 @@ impl eframe::App for GalaxyApp {
                 &mut runtime.ui_state,
             );
 
-            // 2. Rebuild galaxy layout if the data changed
+            // Rebuild galaxy layout if the data changed
             let canvas_rect = ui.available_rect_before_wrap();
             let layout_center = ctx.content_rect().center();
             runtime
                 .galaxy_state
                 .rebuild_if_needed(canvas_rect, layout_center);
 
-            // 3. Allocate painter
+            // Allocate painter
             let (response, painter) = ui.allocate_painter(canvas_rect.size(), egui::Sense::click());
 
-            // 4. Draw space background
+            // Draw space background
             ui::canvas::draw_background(&painter, canvas_rect);
 
-            // 5. Handle spawn-planet menus
+            // Handle spawn-planet menus
             ui::menus::handle_spawn_menus(
                 ctx,
                 &mut runtime.ui_state,
@@ -285,7 +283,7 @@ impl eframe::App for GalaxyApp {
                 &runtime.comms,
             );
 
-            // 6. Handle explorer move-to-planet selector
+            // Handle explorer move-to-planet selector
             ui::popups::show_move_selector(
                 ctx,
                 &mut runtime.ui_state,
@@ -294,7 +292,7 @@ impl eframe::App for GalaxyApp {
                 &runtime.comms,
             );
 
-            // 7. Draw edges
+            // Draw planet edges
             runtime.galaxy_state.refresh_pos_cache();
             ui::canvas::draw_edges(
                 &painter,
@@ -302,7 +300,7 @@ impl eframe::App for GalaxyApp {
                 &runtime.galaxy_state.cached_pos_by_id,
             );
 
-            // 8. Draw planets & explorers
+            // Draw planets & explorers
             ui::canvas::draw_planets_and_explorers(
                 ctx,
                 &painter,
@@ -313,7 +311,7 @@ impl eframe::App for GalaxyApp {
                 &mut runtime.ui_state,
             );
 
-            // 9. Show planet context menu
+            // Show planet context menu
             let maybe_planet = runtime.ui_state.selected_planet;
             let maybe_pos = runtime.ui_state.context_menu_pos;
             if let (Some(planet_id), Some(menu_pos)) = (maybe_planet, maybe_pos) {
@@ -331,7 +329,7 @@ impl eframe::App for GalaxyApp {
                 }
             }
 
-            // 10. Show explorer context menu
+            // Show explorer context menu
             let maybe_explorer = runtime.ui_state.selected_explorer;
             let maybe_pos = runtime.ui_state.context_menu_pos;
             if let (Some(explorer_id), Some(menu_pos)) = (maybe_explorer, maybe_pos) {
@@ -344,19 +342,19 @@ impl eframe::App for GalaxyApp {
                 );
             }
 
-            // 11. Show explorer-limit popup
+            // Show explorer limit popup
             ui::popups::show_explorer_limit_popup(ctx, &mut runtime.ui_state);
 
-            // 12. Show game-over popup
+            // Show game over popup
             ui::popups::show_game_over_popup(ctx, &mut runtime.ui_state);
 
-            // 13. Show generate-resource popup
+            // Show generate resource popup
             ui::popups::show_generate_resource_popup(ctx, &mut runtime.ui_state, &runtime.comms);
 
-            // 14. Show craft-resource popup
+            // Show craft resource popup
             ui::popups::show_craft_resource_popup(ctx, &mut runtime.ui_state, &runtime.comms);
 
-            // 15. Draw asteroid animation
+            // Draw asteroid animation
             ui::animations::draw_asteroid_animation(
                 &painter,
                 canvas_rect,
@@ -364,7 +362,7 @@ impl eframe::App for GalaxyApp {
                 &runtime.galaxy_state.planets,
             );
 
-            // 16. Draw sunray animation
+            // Draw sunray animation
             ui::animations::draw_sunray_animation(
                 &painter,
                 canvas_rect,
@@ -372,10 +370,10 @@ impl eframe::App for GalaxyApp {
                 &runtime.galaxy_state.planets,
             );
 
-            // 17. Draw explorer resource HUD panels (bottom corners)
-            ui::explorer_bag::show_explorer_bags_hud(ctx, &runtime.explorer_state, canvas_rect);
+            // Draw explorer bags panels (bottom corners)
+            ui::explorer_bag::show_explorer_bags(ctx, &runtime.explorer_state, canvas_rect);
 
-            // 18. Draw instructions for the user
+            // Draw instructions for the user
             ui::canvas::draw_help_text(&painter, canvas_rect);
         });
 
@@ -408,7 +406,7 @@ impl eframe::App for GalaxyApp {
                 Some("No explorers remain. The game will now close.".to_owned());
             runtime.end_game_requested = true;
             // Stop polling/updates while we wait for the user to close the popup.
-            runtime.stopped = true;
+            runtime.ended = true;
 
             runtime.comms.send_expect(
                 UiToOrchestratorCommand::EndGame,
