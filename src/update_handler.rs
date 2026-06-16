@@ -10,7 +10,7 @@ use crate::comms::OrchestratorComms;
 use crate::state::{AnimationState, ExplorerState, GalaxyState, UiState};
 
 /// Drain all pending messages from the orchestrator and update application state.
-#[allow(clippy::cast_precision_loss)]
+#[expect(clippy::cast_precision_loss, reason = "charged_cells_count (usize) cast to f32 for animation interpolation; cell counts are always small")]
 pub fn handle_orchestrator_updates(
     comms: &OrchestratorComms,
     galaxy_state: &mut GalaxyState,
@@ -36,8 +36,10 @@ pub fn handle_orchestrator_updates(
                     ),
                 );
                 explorer_state.explorer_positions.clear();
-                for entry in positions.iter() {
-                    explorer_state.explorer_positions.insert(*entry.key(), *entry.value());
+                for entry in &positions {
+                    explorer_state
+                        .explorer_positions
+                        .insert(*entry.key(), *entry.value());
                 }
             }
             OrchestratorToUiUpdate::PlanetSnapshot(id, snapshot) => {
@@ -172,7 +174,7 @@ fn handle_supported_resources(
     }
 }
 
-#[allow(clippy::cast_precision_loss)]
+#[expect(clippy::cast_precision_loss, reason = "energy_cells.len() (usize) cast to f32 for animation clamp; cell count is always small")]
 fn handle_auto_sunray(
     planet_id: ID,
     galaxy_state: &GalaxyState,

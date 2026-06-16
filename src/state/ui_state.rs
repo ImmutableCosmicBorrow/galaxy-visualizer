@@ -75,13 +75,28 @@ impl UiState {
 
 fn default_planet_icon_paths() -> HashMap<String, String> {
     HashMap::from([
-        ("Rusty Crab".to_owned(), "assets/planets/rusty_crab.png".to_owned()),
-        ("Rustrelli".to_owned(), "assets/planets/rustrelli.png".to_owned()),
-        ("Orbitron".to_owned(), "assets/planets/orbitron.png".to_owned()),
-        ("Houston".to_owned(), "assets/planets/houston.png".to_owned()),
+        (
+            "Rusty Crab".to_owned(),
+            "assets/planets/rusty_crab.png".to_owned(),
+        ),
+        (
+            "Rustrelli".to_owned(),
+            "assets/planets/rustrelli.png".to_owned(),
+        ),
+        (
+            "Orbitron".to_owned(),
+            "assets/planets/orbitron.png".to_owned(),
+        ),
+        (
+            "Houston".to_owned(),
+            "assets/planets/houston.png".to_owned(),
+        ),
         ("Trip".to_owned(), "assets/planets/trip.png".to_owned()),
         ("Luna4".to_owned(), "assets/planets/luna4.png".to_owned()),
-        ("Enterprise".to_owned(), "assets/planets/enterprise.png".to_owned()),
+        (
+            "Enterprise".to_owned(),
+            "assets/planets/enterprise.png".to_owned(),
+        ),
     ])
 }
 
@@ -91,7 +106,10 @@ fn default_explorer_icon_paths() -> HashMap<String, String> {
             "Nico Explorer".to_owned(),
             "assets/explorers/nico.png".to_owned(),
         ),
-        ("Vojager".to_owned(), "assets/explorers/vojager.png".to_owned()),
+        (
+            "Vojager".to_owned(),
+            "assets/explorers/vojager.png".to_owned(),
+        ),
         ("Nomad".to_owned(), "assets/explorers/nomad.png".to_owned()),
     ])
 }

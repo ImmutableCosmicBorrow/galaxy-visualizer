@@ -6,8 +6,6 @@ use crate::state::AnimationState;
 // ---------------------------------------------------------------------------
 // Asteroid visual effect
 // ---------------------------------------------------------------------------
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_sign_loss)]
 pub fn draw_asteroid_animation(
     painter: &egui::Painter,
     canvas_rect: egui::Rect,
@@ -37,7 +35,9 @@ pub fn draw_asteroid_animation(
         // Expanding ring to emphasize impact
         let ring_progress = (elapsed / display_duration).min(1.0);
         let ring_radius = 10.0 + 30.0 * ring_progress;
-        let ring_alpha = ((1.0 - ring_progress) * 200.0).max(0.0) as u8;
+        #[expect(clippy::cast_possible_truncation, reason = "value is clamped to [0, 255] before cast")]
+        #[expect(clippy::cast_sign_loss, reason = "value is clamped to [0, 255] so it is always non-negative")]
+        let ring_alpha = ((1.0 - ring_progress) * 200.0).clamp(0.0, 255.0) as u8;
         painter.circle_stroke(
             planet.pos,
             ring_radius,
@@ -60,8 +60,6 @@ pub fn draw_asteroid_animation(
 // ---------------------------------------------------------------------------
 // Sunray visual effect
 // ---------------------------------------------------------------------------
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_sign_loss)]
 pub fn draw_sunray_animation(
     painter: &egui::Painter,
     canvas_rect: egui::Rect,
@@ -94,7 +92,9 @@ pub fn draw_sunray_animation(
         // Subtle expanding glow
         let ring_progress = (elapsed / display_duration).min(1.0);
         let ring_radius = 12.0 + 28.0 * ring_progress;
-        let ring_alpha = ((1.0 - ring_progress) * 180.0).max(0.0) as u8;
+        #[expect(clippy::cast_possible_truncation, reason = "value is clamped to [0, 255] before cast")]
+        #[expect(clippy::cast_sign_loss, reason = "value is clamped to [0, 255] so it is always non-negative")]
+        let ring_alpha = ((1.0 - ring_progress) * 180.0).clamp(0.0, 255.0) as u8;
         painter.circle_stroke(
             planet.pos,
             ring_radius,

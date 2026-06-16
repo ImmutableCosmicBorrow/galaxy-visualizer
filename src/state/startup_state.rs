@@ -17,7 +17,7 @@ impl StartupState {
         Self {
             explorer_slot_one: Some(ExplorerType::Explorer),
             explorer_slot_two: None,
-            game_step_ms: 4000,
+            game_step_ms: 2000,
             galaxy_path: "galaxy/test_galaxy.txt".to_owned(),
             galaxy_contents: String::new(),
             galaxy_dirty: false,

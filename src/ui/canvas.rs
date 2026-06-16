@@ -2,10 +2,9 @@ use common_game::utils::ID;
 use eframe::egui;
 use image::GenericImageView;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
 
-use crate::helpers::format_bag_content;
 use crate::models::Planet;
 use crate::state::{AnimationState, ExplorerState, GalaxyState, UiState};
 
@@ -13,6 +12,8 @@ use crate::state::{AnimationState, ExplorerState, GalaxyState, UiState};
 // Background
 // ---------------------------------------------------------------------------
 
+#[expect(clippy::cast_possible_truncation, reason = "f64→f32 narrowing for egui coords is intentional; f64 precision result fits in f32 display range")]
+#[expect(clippy::cast_precision_loss, reason = "seed%3 is 0..=2, exactly representable in f32; seed%140 fits in u8")]
 pub fn draw_background(painter: &egui::Painter, canvas_rect: egui::Rect) {
     // draw space background dark blue
     painter.rect_filled(
@@ -34,10 +35,12 @@ pub fn draw_background(painter: &egui::Painter, canvas_rect: egui::Rect) {
     let mut seed = 0x4A2D_9E1Bu32;
     for _ in 0..120 {
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        let x = canvas_rect.left() + (seed as f32 / u32::MAX as f32) * canvas_rect.width();
+        // Use f64 for the division to avoid precision loss, then narrow to f32 for egui
+        let x = canvas_rect.left() + (f64::from(seed) / f64::from(u32::MAX)) as f32 * canvas_rect.width();
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        let y = canvas_rect.top() + (seed as f32 / u32::MAX as f32) * canvas_rect.height();
+        let y = canvas_rect.top() + (f64::from(seed) / f64::from(u32::MAX)) as f32 * canvas_rect.height();
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        // seed % 140 is always 0..=139, fits in u8; seed % 3 is always 0..=2, fits in f32 exactly
         let alpha = 40 + (seed % 140) as u8;
         let radius = 0.5 + (seed % 3) as f32 * 0.4;
         painter.circle_filled(
@@ -74,7 +77,6 @@ pub fn draw_edges(
 // Planets & explorers
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::cast_precision_loss)]
 pub fn draw_planets_and_explorers(
     ctx: &egui::Context,
     painter: &egui::Painter,
@@ -98,7 +100,6 @@ pub fn draw_planets_and_explorers(
     }
 }
 
-#[allow(clippy::cast_precision_loss)]
 #[allow(clippy::too_many_arguments)]
 fn draw_single_planet(
     ctx: &egui::Context,
@@ -192,7 +193,7 @@ fn draw_single_planet(
 // Explorers on a single planet
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::cast_precision_loss)]
+#[expect(clippy::cast_precision_loss, reason = "usize index/length cast to f32 for screen-space angle; max 2 explorers so no precision issue")]
 fn draw_explorers_on_planet(
     ctx: &egui::Context,
     painter: &egui::Painter,
@@ -247,13 +248,9 @@ fn draw_explorers_on_planet(
             );
         }
 
-        // Draw explorer label with name, ID, and bag content
+        // Draw explorer label with name and ID (resources are shown in the HUD panels)
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
-        let bag_line = match explorer_state.explorer_bags.get(explorer_id) {
-            Some(bag) => format_bag_content(bag),
-            None => "bag: loading".to_string(),
-        };
-        let label_text = format!("{explorer_name} {explorer_id}\n{bag_line}");
+        let label_text = format!("{explorer_name} ({explorer_id})");
         painter.text(
             explorer_pos + egui::Vec2::new(explorer_radius + 6.0, -explorer_radius - 6.0),
             egui::Align2::LEFT_TOP,
@@ -276,7 +273,6 @@ fn planet_base_color(planet_id: ID) -> egui::Color32 {
     let idx = (planet_id as usize) % palette.len();
     palette[idx]
 }
-
 
 fn get_explorer_texture(
     ctx: &egui::Context,
@@ -309,9 +305,7 @@ fn get_explorer_texture(
     let texture_name = format!("explorer_{key}");
     match load_texture_from_path(ctx, &path, &texture_name) {
         Ok(texture) => {
-            ui_state
-                .explorer_textures
-                .insert(key, texture.clone());
+            ui_state.explorer_textures.insert(key, texture.clone());
             Some(texture)
         }
         Err(err) => {
@@ -325,7 +319,7 @@ fn get_explorer_texture(
 
 fn explorer_icon_key(explorer_id: ID) -> String {
     let name = orchestrator::id::IdManager::explorer_name_from_id(explorer_id);
-    explorer_icon_key_from_name(&name)
+    explorer_icon_key_from_name(name)
 }
 
 fn explorer_icon_key_from_name(name: &str) -> String {
@@ -334,8 +328,6 @@ fn explorer_icon_key_from_name(name: &str) -> String {
         "Vojager".to_owned()
     } else if lower.contains("nomad") {
         "Nomad".to_owned()
-    } else if lower.contains("nico") || lower.contains("explorer") {
-        "Nico Explorer".to_owned()
     } else {
         "Nico Explorer".to_owned()
     }
@@ -379,18 +371,15 @@ fn get_planet_texture(
         .or_else(|| fallback_icon_path(&key));
 
     let Some(path) = path else {
-        ui_state.planet_icon_errors.insert(
-            key,
-            format!("No icon mapping for '{planet_name}'"),
-        );
+        ui_state
+            .planet_icon_errors
+            .insert(key, format!("No icon mapping for '{planet_name}'"));
         return None;
     };
 
     match load_texture_from_path(ctx, &path, &key) {
         Ok(texture) => {
-            ui_state
-                .planet_textures
-                .insert(key, texture.clone());
+            ui_state.planet_textures.insert(key, texture.clone());
             Some(texture)
         }
         Err(err) => {
@@ -465,9 +454,9 @@ fn resolve_asset_path(path: &str) -> PathBuf {
 // Planet state overlay (energy cells, rocket icon, …)
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::cast_sign_loss)]
-#[allow(clippy::cast_precision_loss)]
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_precision_loss, reason = "charged_cells_count cast to f32 for smooth animation; value is always small")]
+#[expect(clippy::cast_sign_loss, reason = "displayed is kept >= 0 by the animation clamp logic; .round() is always non-negative")]
+#[expect(clippy::cast_possible_truncation, reason = "displayed counter is bounded by energy_cells.len() which is small")]
 fn draw_planet_state(
     ctx: &egui::Context,
     painter: &egui::Painter,

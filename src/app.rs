@@ -118,10 +118,10 @@ impl GalaxyApp {
             galaxy_path: self.startup_state.galaxy_path.clone(),
         };
 
-        self.start_game(config);
+        self.start_game(&config);
     }
 
-    fn start_game(&mut self, config: StartConfig) {
+    fn start_game(&mut self, config: &StartConfig) {
         let (mut orch, cmd_sender, update_receiver) = orchestrator::create_with_path(
             &config.galaxy_path,
             config.explorer_one,
@@ -177,7 +177,6 @@ impl GalaxyApp {
 // ---------------------------------------------------------------------------
 
 impl eframe::App for GalaxyApp {
-    #[allow(clippy::cast_possible_truncation)]
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if !self.theme_applied {
@@ -373,14 +372,30 @@ impl eframe::App for GalaxyApp {
                 &runtime.galaxy_state.planets,
             );
 
-            // 17. Draw instructions for the user
+            // 17. Draw explorer resource HUD panels (bottom corners)
+            ui::explorer_bag::show_explorer_bags_hud(ctx, &runtime.explorer_state, canvas_rect);
+
+            // 18. Draw instructions for the user
             ui::canvas::draw_help_text(&painter, canvas_rect);
         });
 
         // End game only after startup grace period
+        let has_live_explorer =
+            runtime
+                .explorer_state
+                .explorer_positions
+                .iter()
+                .any(|(_, planet_id)| {
+                    runtime
+                        .galaxy_state
+                        .planets
+                        .iter()
+                        .any(|planet| planet.id == *planet_id && planet.active)
+                });
+
         if !runtime.end_game_requested
             && runtime.started_at.elapsed() >= runtime.explorer_death_check_delay
-            && runtime.explorer_state.explorer_positions.is_empty()
+            && !has_live_explorer
         {
             orchestrator::logging::log_internal(
                 LogTarget::General,
@@ -389,13 +404,16 @@ impl eframe::App for GalaxyApp {
                     message : "All explorers are dead. Ending game.",
                 ),
             );
+            runtime.ui_state.game_over_popup =
+                Some("No explorers remain. The game will now close.".to_owned());
+            runtime.end_game_requested = true;
+            // Stop polling/updates while we wait for the user to close the popup.
+            runtime.stopped = true;
+
             runtime.comms.send_expect(
                 UiToOrchestratorCommand::EndGame,
                 "Failed to send EndGame command",
             );
-            runtime.ui_state.game_over_popup =
-                Some("All explorers are dead. The game will now close.".to_owned());
-            runtime.end_game_requested = true;
         }
 
         // Close window gracefully after EndGame
