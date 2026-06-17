@@ -12,8 +12,14 @@ use crate::state::{AnimationState, ExplorerState, GalaxyState, UiState};
 // Background
 // ---------------------------------------------------------------------------
 
-#[expect(clippy::cast_possible_truncation, reason = "f64→f32 narrowing for egui coords is intentional; f64 precision result fits in f32 display range")]
-#[expect(clippy::cast_precision_loss, reason = "seed%3 is 0..=2, exactly representable in f32; seed%140 fits in u8")]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "f64 ->f32 narrowing for egui coords is intentional; f64 precision result fits in f32 display range"
+)]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "seed%3 is 0..=2, exactly representable in f32; seed%140 fits in u8"
+)]
 pub fn draw_background(painter: &egui::Painter, canvas_rect: egui::Rect) {
     // draw space background dark blue
     painter.rect_filled(
@@ -36,9 +42,11 @@ pub fn draw_background(painter: &egui::Painter, canvas_rect: egui::Rect) {
     for _ in 0..120 {
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
         // Use f64 for the division to avoid precision loss, then narrow to f32 for egui
-        let x = canvas_rect.left() + (f64::from(seed) / f64::from(u32::MAX)) as f32 * canvas_rect.width();
+        let x = canvas_rect.left()
+            + (f64::from(seed) / f64::from(u32::MAX)) as f32 * canvas_rect.width();
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        let y = canvas_rect.top() + (f64::from(seed) / f64::from(u32::MAX)) as f32 * canvas_rect.height();
+        let y = canvas_rect.top()
+            + (f64::from(seed) / f64::from(u32::MAX)) as f32 * canvas_rect.height();
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
         // seed % 140 is always 0..=139, fits in u8; seed % 3 is always 0..=2, fits in f32 exactly
         let alpha = 40 + (seed % 140) as u8;
@@ -193,7 +201,10 @@ fn draw_single_planet(
 // Explorers on a single planet
 // ---------------------------------------------------------------------------
 
-#[expect(clippy::cast_precision_loss, reason = "usize index/length cast to f32 for screen-space angle; max 2 explorers so no precision issue")]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "usize index/length cast to f32 for screen-space angle; max 2 explorers so no precision issue"
+)]
 fn draw_explorers_on_planet(
     ctx: &egui::Context,
     painter: &egui::Painter,
@@ -250,7 +261,7 @@ fn draw_explorers_on_planet(
 
         // Draw explorer label with name and ID (resources are shown in the HUD panels)
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(*explorer_id);
-        let display_name = crate::helpers::display_explorer_name(&explorer_name);
+        let display_name = crate::helpers::display_explorer_name(explorer_name);
         let label_text = format!("{display_name} ({explorer_id})");
         painter.text(
             explorer_pos + egui::Vec2::new(explorer_radius + 6.0, -explorer_radius - 6.0),
@@ -455,9 +466,18 @@ fn resolve_asset_path(path: &str) -> PathBuf {
 // Planet state overlay (energy cells, rocket icon, …)
 // ---------------------------------------------------------------------------
 
-#[expect(clippy::cast_precision_loss, reason = "charged_cells_count cast to f32 for smooth animation; value is always small")]
-#[expect(clippy::cast_sign_loss, reason = "displayed is kept >= 0 by the animation clamp logic; .round() is always non-negative")]
-#[expect(clippy::cast_possible_truncation, reason = "displayed counter is bounded by energy_cells.len() which is small")]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "charged_cells_count cast to f32 for smooth animation; value is always small"
+)]
+#[expect(
+    clippy::cast_sign_loss,
+    reason = "displayed is kept >= 0 by the animation clamp logic; .round() is always non-negative"
+)]
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "displayed counter is bounded by energy_cells.len() which is small"
+)]
 fn draw_planet_state(
     ctx: &egui::Context,
     painter: &egui::Painter,
@@ -525,7 +545,7 @@ pub fn draw_help_text(painter: &egui::Painter, canvas_rect: egui::Rect) {
     painter.text(
         canvas_rect.min + egui::Vec2::new(20.0, 20.0),
         egui::Align2::LEFT_TOP,
-        "Right-click a planet for options. Use the top-right button to create a planet.",
+        "Right-click an entity for options. Use the top-right button to create a planet.",
         egui::FontId::monospace(14.0),
         egui::Color32::YELLOW,
     );

@@ -16,8 +16,8 @@ pub fn draw_asteroid_animation(
         return;
     };
 
-    // Make asteroid effect 
-    let display_duration = 0.25_f32; 
+    // Make asteroid effect
+    let display_duration = 0.25_f32;
     let elapsed = start_time.elapsed().as_secs_f32();
 
     if let Some(planet) = planets.iter().find(|p| p.id == planet_id) {
@@ -33,8 +33,14 @@ pub fn draw_asteroid_animation(
 
         let ring_progress = (elapsed / display_duration).min(1.0);
         let ring_radius = 10.0 + 30.0 * ring_progress;
-        #[expect(clippy::cast_possible_truncation, reason = "value is clamped to [0, 255] before cast")]
-        #[expect(clippy::cast_sign_loss, reason = "value is clamped to [0, 255] so it is always non-negative")]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "value is clamped to [0, 255] before cast"
+        )]
+        #[expect(
+            clippy::cast_sign_loss,
+            reason = "value is clamped to [0, 255] so it is always non-negative"
+        )]
         let ring_alpha = ((1.0 - ring_progress) * 200.0).clamp(0.0, 255.0) as u8;
         painter.circle_stroke(
             planet.pos,
@@ -88,8 +94,14 @@ pub fn draw_sunray_animation(
 
         let ring_progress = (elapsed / display_duration).min(1.0);
         let ring_radius = 12.0 + 28.0 * ring_progress;
-        #[expect(clippy::cast_possible_truncation, reason = "value is clamped to [0, 255] before cast")]
-        #[expect(clippy::cast_sign_loss, reason = "value is clamped to [0, 255] so it is always non-negative")]
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "value is clamped to [0, 255] before cast"
+        )]
+        #[expect(
+            clippy::cast_sign_loss,
+            reason = "value is clamped to [0, 255] so it is always non-negative"
+        )]
         let ring_alpha = ((1.0 - ring_progress) * 180.0).clamp(0.0, 255.0) as u8;
         painter.circle_stroke(
             planet.pos,

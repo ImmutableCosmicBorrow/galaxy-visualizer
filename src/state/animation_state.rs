@@ -18,7 +18,7 @@ impl AnimationState {
             planet_displayed_charged: HashMap::new(),
         }
     }
-    
+
     pub fn has_active_animations(&self) -> bool {
         self.sending_asteroid.is_some()
             || self.sending_sunray.is_some()

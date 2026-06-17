@@ -42,7 +42,10 @@ pub fn planet_group_name_from_id(id: ID) -> &'static str {
 }
 
 // Map the orchestrator's galaxy snapshot into renderable planets + edges for egui
-#[expect(clippy::cast_precision_loss, reason = "planet count and index cast to f32 for circular layout angles; counts are always small")]
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "planet count and index cast to f32 for circular layout angles; counts are always small"
+)]
 pub fn build_planets_and_edges_from_galaxy(
     galaxy: &PlanetMap,
     center: egui::Pos2,
@@ -97,4 +100,3 @@ pub fn display_explorer_name(name: &str) -> String {
         name.to_string()
     }
 }
-

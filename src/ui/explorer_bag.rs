@@ -4,19 +4,12 @@ use eframe::egui;
 use crate::state::ExplorerState;
 
 // ---------------------------------------------------------------------------
-// Explorer resource HUD panels (bottom corners)
+// Explorer resource panels (bottom corners)
 // ---------------------------------------------------------------------------
 
 /// Draw up to 2 small resource-counter panels, one per explorer, anchored to
 /// the bottom corners of the canvas rect.
-///
-/// * The first explorer occupies the **bottom-left** corner.
-/// * The second explorer (if present) occupies the **bottom-right** corner.
-///
-/// Each panel shows:
-///   - Explorer name + ID as a header
-///   - One row per resource: `"ResourceName: n"`
-///   - "bag: empty" when no resources are held
+/// The resources are removed if their counter is zero.
 pub fn show_explorer_bags(
     ctx: &egui::Context,
     explorer_state: &ExplorerState,
@@ -29,7 +22,6 @@ pub fn show_explorer_bags(
     // Collect and sort explorer IDs for a stable ordering between frames.
     let mut explorer_ids: Vec<ID> = explorer_state.explorer_positions.keys().copied().collect();
     explorer_ids.sort_unstable();
-
 
     for (slot, &explorer_id) in explorer_ids.iter().take(2).enumerate() {
         // Decide which corner this slot uses
@@ -48,7 +40,7 @@ pub fn show_explorer_bags(
         };
 
         let explorer_name = orchestrator::id::IdManager::explorer_name_from_id(explorer_id);
-        let display_name = crate::helpers::display_explorer_name(&explorer_name);
+        let display_name = crate::helpers::display_explorer_name(explorer_name);
         let title = format!("{display_name} ({explorer_id})");
 
         // Clone bag data needed for rendering (avoids holding borrow inside closure)
@@ -57,6 +49,7 @@ pub fn show_explorer_bags(
                 let mut entries: Vec<(String, u64)> = bag
                     .resources_amounts
                     .iter()
+                    .filter(|(_, v)| **v > 0)
                     .map(|(k, v)| (format!("{k:?}"), *v))
                     .collect();
                 entries.sort_by(|a, b| a.0.cmp(&b.0));
@@ -85,7 +78,7 @@ pub fn show_explorer_bags(
                     .show(ui, |ui| {
                         ui.set_max_width(PANEL_WIDTH - 24.0); // account for inner margin
 
-                        // ── Header ─────────────────────────────────────────
+                        // Header
                         ui.label(
                             egui::RichText::new(&title)
                                 .size(12.0)
@@ -95,7 +88,7 @@ pub fn show_explorer_bags(
 
                         ui.add(egui::Separator::default().spacing(4.0));
 
-                        // ── Resource rows ──────────────────────────────────
+                        // Resource rows
                         if bag_entries.is_empty() {
                             ui.label(
                                 egui::RichText::new("bag: empty")

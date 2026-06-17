@@ -172,7 +172,7 @@ impl GalaxyApp {
     }
 }
 
-/// eframe::App, trait implementation. The main loop
+/// `eframe::App`, trait implementation. The main loop
 impl eframe::App for GalaxyApp {
     #[allow(clippy::too_many_lines)]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -202,7 +202,7 @@ impl eframe::App for GalaxyApp {
             runtime.ui_state.game_over_popup = Some("Shutting down".to_owned());
         }
 
-        // Top control bar 
+        // Top control bar
         ui::top_panel::show_top_panel(
             ctx,
             &mut runtime.ui_state,
@@ -234,7 +234,7 @@ impl eframe::App for GalaxyApp {
                 .send(UiToOrchestratorCommand::GetExplorersPosition);
         }
 
-        // Drain expired planet refresh requests 
+        // Drain expired planet refresh requests
         {
             let refresh_delay = std::time::Duration::from_millis(100);
             let mut i = 0;

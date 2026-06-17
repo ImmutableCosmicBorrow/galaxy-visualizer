@@ -40,12 +40,19 @@ pub fn show_move_selector(
             }
         }
 
+        let current_planet_name = galaxy_state
+            .planets
+            .iter()
+            .find(|p| p.id == current_planet)
+            .map(|p| p.name.as_str())
+            .unwrap_or("Unknown");
+
         egui::Area::new(egui::Id::new("explorer_move_selector"))
             .fixed_pos(pos)
             .show(ctx, |ui| {
                 ui.vertical(|ui| {
                     ui.label(format!(
-                        "Move Explorer {explorer_id} from Planet {current_planet} to:"
+                        "Move Explorer {explorer_id} from {current_planet_name} to:"
                     ));
                     ui.separator();
 
@@ -53,7 +60,13 @@ pub fn show_move_selector(
                         ui.label("No neighbors available");
                     } else {
                         for nid in &neighbors {
-                            if ui.button(format!("Planet {nid}")).clicked() {
+                            let neighbor_name = galaxy_state
+                                .planets
+                                .iter()
+                                .find(|p| p.id == *nid)
+                                .map(|p| p.name.as_str())
+                                .unwrap_or("Unknown");
+                            if ui.button(format!("{neighbor_name}")).clicked() {
                                 // log and send move command: Explorer ID, from, to
                                 orchestrator::logging::log_internal(
                                     LogTarget::ChannelMessages,
