@@ -44,8 +44,7 @@ pub fn show_move_selector(
             .planets
             .iter()
             .find(|p| p.id == current_planet)
-            .map(|p| p.name.as_str())
-            .unwrap_or("Unknown");
+            .map_or("Unknown", |p| p.name.as_str());
 
         egui::Area::new(egui::Id::new("explorer_move_selector"))
             .fixed_pos(pos)
@@ -64,9 +63,8 @@ pub fn show_move_selector(
                                 .planets
                                 .iter()
                                 .find(|p| p.id == *nid)
-                                .map(|p| p.name.as_str())
-                                .unwrap_or("Unknown");
-                            if ui.button(format!("{neighbor_name}")).clicked() {
+                                .map_or("Unknown", |p| p.name.as_str());
+                            if ui.button(neighbor_name).clicked() {
                                 // log and send move command: Explorer ID, from, to
                                 orchestrator::logging::log_internal(
                                     LogTarget::ChannelMessages,

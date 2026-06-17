@@ -160,7 +160,7 @@ pub fn show_context_menu(
     let mut start_ai = false;
     let mut stop_ai = false;
     let mut reset_ai = false;
-    let mut spawn_nico_explorer = false; 
+    let mut spawn_nico_explorer = false;
     let mut spawn_vojager = false;
     let mut spawn_nomad = false;
     let mut close_menu = false;
