@@ -80,7 +80,20 @@ pub fn show_startup_menu(ctx: &egui::Context, state: &mut StartupState) -> Start
                             egui::TextEdit::singleline(&mut state.galaxy_path),
                         );
                         if ui.button("Load").clicked() {
-                            state.load_galaxy_file();
+                            let mut dialog = rfd::FileDialog::new()
+                                .add_filter("Text Files", &["txt"])
+                                .add_filter("All Files", &["*"]);
+
+                            if let Some(parent) = std::path::Path::new(&state.galaxy_path).parent() {
+                                if parent.exists() {
+                                    dialog = dialog.set_directory(parent);
+                                }
+                            }
+
+                            if let Some(path) = dialog.pick_file() {
+                                state.galaxy_path = path.to_string_lossy().to_string();
+                                state.load_galaxy_file();
+                            }
                         }
                         if ui.button("Save").clicked() {
                             state.save_galaxy_file();
