@@ -261,7 +261,7 @@ impl eframe::App for GalaxyApp {
                 &mut runtime.animation_state,
                 &mut runtime.ui_state,
                 &mut runtime.end_game_requested,
-                &mut runtime.end_game_timestamp,
+                &mut runtime.ended,
             );
 
             // Rebuild galaxy layout if the data changed

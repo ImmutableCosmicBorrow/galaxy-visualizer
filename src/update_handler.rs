@@ -21,7 +21,7 @@ pub fn handle_orchestrator_updates(
     animation_state: &mut AnimationState,
     ui_state: &mut UiState,
     end_game_requested: &mut bool,
-    end_game_timestamp: &mut Option<Instant>,
+    ended: &mut bool,
 ) {
     while let Ok(cmd) = comms.update_receiver.try_recv() {
         match cmd {
@@ -96,7 +96,7 @@ pub fn handle_orchestrator_updates(
             OrchestratorToUiUpdate::GameOver(reason) => {
                 comms.send(UiToOrchestratorCommand::EndGame);
                 *end_game_requested = true;
-                *end_game_timestamp = Some(Instant::now());
+                *ended = true;
                 ui_state.game_over_popup = Some(reason);
             }
         }

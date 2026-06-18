@@ -160,6 +160,7 @@ pub fn show_context_menu(
     let mut start_ai = false;
     let mut stop_ai = false;
     let mut reset_ai = false;
+    let mut kill_planet = false;
     let mut spawn_nico_explorer = false;
     let mut spawn_vojager = false;
     let mut spawn_nomad = false;
@@ -238,6 +239,14 @@ pub fn show_context_menu(
                     .clicked()
                 {
                     reset_ai = true;
+                }
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Kill Planet").size(13.0),
+                    ))
+                    .clicked()
+                {
+                    kill_planet = true;
                 }
                 if ui
                     .add(egui::Button::new(egui::RichText::new("✗ Close").size(13.0)))
@@ -338,6 +347,12 @@ pub fn show_context_menu(
         close_menu = true;
     }
 
+    if kill_planet {
+        comms.send(UiToOrchestratorCommand::KillPlanet(planet_id));
+        comms.send(UiToOrchestratorCommand::GetGalaxy);
+        close_menu = true;
+    }
+
     if close_menu {
         ui_state.close_planet_menu();
     }
@@ -358,6 +373,7 @@ pub fn show_explorer_menu(
     let mut stop_expl_ai = false;
     let mut reset_expl_ai = false;
     let mut start_expl_ai = false;
+    let mut kill_explorer = false;
     let mut move_to_planet = false;
     let mut generate_resource = false;
     let mut craft_resource = false;
@@ -422,6 +438,14 @@ pub fn show_explorer_menu(
                 {
                     reset_expl_ai = true;
                 }
+                if ui
+                    .add(egui::Button::new(
+                        egui::RichText::new("Kill Explorer").size(13.0),
+                    ))
+                    .clicked()
+                {
+                    kill_explorer = true;
+                }
 
                 if ui
                     .add(egui::Button::new(egui::RichText::new("✗ Close").size(13.0)))
@@ -447,6 +471,12 @@ pub fn show_explorer_menu(
 
     if stop_expl_ai {
         comms.send(UiToOrchestratorCommand::StopExplorerAI(explorer_id));
+        comms.send(UiToOrchestratorCommand::GetExplorersPosition);
+        close = true;
+    }
+
+    if kill_explorer {
+        comms.send(UiToOrchestratorCommand::KillExplorer(explorer_id));
         comms.send(UiToOrchestratorCommand::GetExplorersPosition);
         close = true;
     }

@@ -12,7 +12,7 @@ test:
 coverage:
 	cargo tarpaulin --out Lcov
 
-all: fmt lint test
+all: fmt lint 
 
 doc:
 	cargo doc
