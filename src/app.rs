@@ -27,8 +27,6 @@ struct GameRuntime {
     animation_state: AnimationState,
     timers: PollingTimers,
     comms: OrchestratorComms,
-    started_at: Instant,
-    explorer_death_check_delay: Duration,
     end_game_requested: bool,
     end_game_timestamp: Option<Instant>,
     ended: bool,
@@ -161,10 +159,6 @@ impl GalaxyApp {
             animation_state: AnimationState::new(),
             timers: PollingTimers::new(config.game_step_ms),
             comms: OrchestratorComms::new(cmd_sender, update_receiver),
-            started_at: Instant::now(),
-            explorer_death_check_delay: Duration::from_millis(
-                config.game_step_ms.saturating_mul(2),
-            ),
             end_game_requested: false,
             end_game_timestamp: None,
             ended: false,
@@ -378,43 +372,6 @@ impl eframe::App for GalaxyApp {
             // Draw instructions for the user
             ui::canvas::draw_help_text(&painter, canvas_rect);
         });
-
-        // End game only after startup grace period
-        let has_live_explorer =
-            runtime
-                .explorer_state
-                .explorer_positions
-                .iter()
-                .any(|(_, planet_id)| {
-                    runtime
-                        .galaxy_state
-                        .planets
-                        .iter()
-                        .any(|planet| planet.id == *planet_id && planet.active)
-                });
-
-        if !runtime.end_game_requested
-            && runtime.started_at.elapsed() >= runtime.explorer_death_check_delay
-            && !has_live_explorer
-        {
-            orchestrator::logging::log_internal(
-                LogTarget::General,
-                Channel::Info,
-                payload!(
-                    message : "All explorers are dead. Ending game.",
-                ),
-            );
-            runtime.ui_state.game_over_popup =
-                Some("No explorers remain. The game will now close.".to_owned());
-            runtime.end_game_requested = true;
-            // Stop polling/updates while we wait for the user to close the popup.
-            runtime.ended = true;
-
-            runtime.comms.send_expect(
-                UiToOrchestratorCommand::EndGame,
-                "Failed to send EndGame command",
-            );
-        }
 
         // Close window gracefully after EndGame
         if let Some(shutdown_time) = runtime.end_game_timestamp {

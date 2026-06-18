@@ -1550,7 +1550,7 @@ dependencies = [
 [[package]]
 name = "explorer_nico"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_nico#2bee50f9e1f5829cde5fae7e369eb8e983ef45de"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_nico#b6b418559892bfc7fc7c055e1e1e0f9c2a36e9d0"
 dependencies = [
  "common-explorer",
  "common-game",
@@ -3092,7 +3092,7 @@ dependencies = [
 [[package]]
 name = "orchestrator"
 version = "0.2.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/orchestrator/#b5115fa73939f0a2606d70a7e628f2e6030b0dbc"
+source = "git+https://github.com/ImmutableCosmicBorrow/orchestrator/#b00410f982fd9e098200a417e6239282dc0974d4"
 dependencies = [
  "Planet",
  "chrono",
