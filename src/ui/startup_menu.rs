@@ -84,10 +84,10 @@ pub fn show_startup_menu(ctx: &egui::Context, state: &mut StartupState) -> Start
                                 .add_filter("Text Files", &["txt"])
                                 .add_filter("All Files", &["*"]);
 
-                            if let Some(parent) = std::path::Path::new(&state.galaxy_path).parent() {
-                                if parent.exists() {
-                                    dialog = dialog.set_directory(parent);
-                                }
+                            if let Some(parent) = std::path::Path::new(&state.galaxy_path).parent()
+                                && parent.exists()
+                            {
+                                dialog = dialog.set_directory(parent);
                             }
 
                             if let Some(path) = dialog.pick_file() {

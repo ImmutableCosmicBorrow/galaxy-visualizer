@@ -20,6 +20,8 @@ pub fn handle_orchestrator_updates(
     explorer_state: &mut ExplorerState,
     animation_state: &mut AnimationState,
     ui_state: &mut UiState,
+    end_game_requested: &mut bool,
+    end_game_timestamp: &mut Option<Instant>,
 ) {
     while let Ok(cmd) = comms.update_receiver.try_recv() {
         match cmd {
@@ -89,6 +91,13 @@ pub fn handle_orchestrator_updates(
             }
             OrchestratorToUiUpdate::SendAutoAsteroid(planet_id) => {
                 handle_auto_asteroid(planet_id, animation_state, comms);
+            }
+
+            OrchestratorToUiUpdate::GameOver(reason) => {
+                comms.send(UiToOrchestratorCommand::EndGame);
+                *end_game_requested = true;
+                *end_game_timestamp = Some(Instant::now());
+                ui_state.game_over_popup = Some(reason);
             }
         }
     }
