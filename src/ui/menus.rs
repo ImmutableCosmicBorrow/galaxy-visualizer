@@ -271,9 +271,7 @@ pub fn show_context_menu(
         // Use the authoritative explorer positions map for counting explorers
         let explorer_count = explorer_state.explorer_positions.len();
         if explorer_count >= 2 {
-            let msg = format!(
-                "❗ Explorer limit reached ({explorer_count} explorers), cannot spawn more explorers.",
-            );
+            let msg = "❗ Explorer limit reached, cannot spawn more.".to_string();
             orchestrator::logging::log_internal(
                 LogTarget::General,
                 Channel::Warning,

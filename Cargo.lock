@@ -1537,7 +1537,7 @@ dependencies = [
 [[package]]
 name = "explorer_jacopo"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_jacopo.git#6711c180bd78b8416b5ba8aa4716b111e8a738b8"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_jacopo.git#68da08cbc41ec5974319a597b2d73a267339326e"
 dependencies = [
  "common-explorer",
  "common-game",
@@ -1550,7 +1550,7 @@ dependencies = [
 [[package]]
 name = "explorer_nico"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_nico#b6b418559892bfc7fc7c055e1e1e0f9c2a36e9d0"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_nico#92a2d625925944eeedc60d4b9522778e8fbd65f2"
 dependencies = [
  "common-explorer",
  "common-game",
@@ -1561,7 +1561,7 @@ dependencies = [
 [[package]]
 name = "explorer_rob"
 version = "0.1.0"
-source = "git+https://github.com/ImmutableCosmicBorrow/explorer_rob.git#3fa24f1f39b9bc6c22a522c4709e37c3e1724548"
+source = "git+https://github.com/ImmutableCosmicBorrow/explorer_rob.git#c2b9236ea2fd5407e3b91bf9aad2302a1a50a731"
 dependencies = [
  "common-explorer",
  "common-game",
